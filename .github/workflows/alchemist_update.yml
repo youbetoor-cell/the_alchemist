@@ -2,12 +2,11 @@ name: 🔁 Update The Alchemist Data
 
 on:
   schedule:
-    # Runs every hour, on the hour
-    - cron: "0 * * * *"
-  workflow_dispatch:   # allows manual trigger too
+    - cron: "0 * * * *"  # every hour
+  workflow_dispatch:
 
 jobs:
-  update-data:
+  update:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,19 +20,20 @@ jobs:
 
       - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run The Alchemist main script
-        run: |
-          python main.py
+      - name: Run The Alchemist agents
+        run: python main.py
 
-      - name: Commit and push updated data
+      - name: Commit & push updates
         run: |
-          git config --global user.name "The Alchemist Bot"
-          git config --global user.email "bot@thealchemist.ai"
+          git config user.name "The Alchemist Bot"
+          git config user.email "bot@thealchemist.ai"
           git add data/summary.json data/reports/*.json || true
-          git commit -m "Auto-update data from GitHub Actions" || echo "No changes to commit"
+          git commit -m "Auto-update $(date -u +'%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
           git push
+
       - name: Send Slack notification
         if: success()
         env:
@@ -41,8 +41,6 @@ jobs:
         run: |
           if [ -n "$SLACK_WEBHOOK_URL" ]; then
             curl -X POST -H 'Content-type: application/json' \
-            --data "{\"text\":\"✅ The Alchemist auto-update complete at $(date -u +'%Y-%m-%d %H:%M:%S') UTC\"}" \
+            --data "{\"text\":\"✅ *The Alchemist* auto-update complete at $(date -u +'%Y-%m-%d %H:%M:%S') UTC\"}" \
             "$SLACK_WEBHOOK_URL"
-          else
-            echo "No SLACK_WEBHOOK_URL set; skipping Slack notification."
           fi
