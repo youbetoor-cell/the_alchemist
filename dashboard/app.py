@@ -3,22 +3,20 @@ import pandas as pd
 import json
 from pathlib import Path
 import plotly.express as px
-from datetime import datetime
+import requests
+from datetime import datetime, timedelta
 
-# --- App Config ---
+# --- Page Config ---
 st.set_page_config(page_title="🧙‍♂️ The Alchemist", layout="wide")
 
 # --- Custom CSS ---
 st.markdown("""
 <style>
-/* Background gradient */
 [data-testid="stAppViewContainer"] {
     background: radial-gradient(circle at 20% 20%, #0f0f1f, #000000 70%);
     color: #e0e0e0;
     font-family: 'Poppins', sans-serif;
 }
-
-/* Header */
 .alchemist-header {
     text-align: center;
     padding: 2rem;
@@ -28,8 +26,6 @@ st.markdown("""
     color: black;
     font-weight: 600;
 }
-
-/* Cards */
 .alchemist-card {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(240,185,11,0.3);
@@ -43,14 +39,6 @@ st.markdown("""
     transform: scale(1.02);
     box-shadow: 0 0 20px rgba(240,185,11,0.4);
 }
-
-/* Data Table */
-thead tr th {
-    background-color: #111 !important;
-    color: #f0b90b !important;
-}
-
-/* Footer */
 .footer {
     text-align: center;
     color: #777;
@@ -64,11 +52,22 @@ thead tr th {
 st.markdown("""
 <div class='alchemist-header'>
     <h1>🧙‍♂️ The Alchemist AI Terminal</h1>
-    <p>Where data transforms into gold — automated intelligence for financial markets</p>
+    <p>Turning Data into Gold — Automated Intelligence for Financial Markets</p>
 </div>
 """, unsafe_allow_html=True)
 
-# --- Load data ---
+# --- Sidebar ---
+st.sidebar.image("https://cdn-icons-png.flaticon.com/512/2821/2821637.png", width=100)
+st.sidebar.markdown("### ⚙️ Control Panel")
+
+# Refresh button
+if st.sidebar.button("🔄 Refresh Data"):
+    st.sidebar.success("Running local agents... please wait ⏳")
+    import os
+    os.system("python main.py")
+    st.sidebar.success("✅ Data updated!")
+
+# --- Load summary ---
 summary_path = Path("data/summary.json")
 if not summary_path.exists():
     st.warning("No summary file found yet. Run `python main.py` or wait for auto-update.")
@@ -80,18 +79,16 @@ with open(summary_path) as f:
 ranking = pd.DataFrame(summary.get("details", []))
 ranking = ranking.sort_values(by="score", ascending=False)
 
-# --- Sidebar ---
-st.sidebar.image("https://cdn-icons-png.flaticon.com/512/2821/2821637.png", width=100)
+# --- Sidebar Info ---
 st.sidebar.markdown("### 🕒 Last Updated")
 st.sidebar.info(summary.get("generated_at", "N/A"))
-st.sidebar.markdown("### ⚙️ Top Performer")
 if not ranking.empty:
-    st.sidebar.success(f"{ranking.iloc[0]['name'].capitalize()} — Score: {round(ranking.iloc[0]['score'], 3)}")
+    st.sidebar.markdown("### 🧠 Top Performer")
+    top = ranking.iloc[0]
+    st.sidebar.success(f"{top['name'].capitalize()} — Score: {round(top['score'],3)}")
 
-# --- Main Dashboard ---
-st.markdown("## 🏆 Performance Overview")
-
-# Interactive Chart
+# --- Performance Overview ---
+st.markdown("## 🏆 Domain Performance Rankings")
 fig = px.bar(
     ranking,
     x="name",
@@ -99,7 +96,7 @@ fig = px.bar(
     color="score",
     text_auto=".2f",
     color_continuous_scale="sunset",
-    title="Agent Confidence Scores",
+    title="Agent Confidence Scores"
 )
 fig.update_layout(
     plot_bgcolor="rgba(0,0,0,0)",
@@ -108,7 +105,7 @@ fig.update_layout(
 )
 st.plotly_chart(fig, use_container_width=True)
 
-# --- Agent Cards ---
+# --- Agent Insights ---
 st.markdown("## 🧩 Agent Insights")
 cols = st.columns(3)
 for i, row in enumerate(ranking.itertuples()):
@@ -121,17 +118,24 @@ for i, row in enumerate(ranking.itertuples()):
         </div>
         """, unsafe_allow_html=True)
 
-# --- Insight Summary ---
-if not ranking.empty:
-    top = ranking.iloc[0]
-    st.markdown(f"""
-    <div class='alchemist-card'>
-        <h2>🧠 The Alchemist Insight</h2>
-        <p><strong>Top performer:</strong> {top['name'].capitalize()}</p>
-        <p><strong>Score:</strong> {round(top['score'],3)}</p>
-        <p><strong>Summary:</strong> {top['summary']}</p>
-    </div>
-    """, unsafe_allow_html=True)
+# --- Live Bitcoin Chart ---
+st.markdown("## 💰 Live Bitcoin Price (last 24h)")
+try:
+    # Fetch data from CoinGecko
+    url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart"
+    params = {"vs_currency": "usd", "days": "1"}
+    data = requests.get(url, params=params).json()
+    prices = data.get("prices", [])
+    if prices:
+        df_btc = pd.DataFrame(prices, columns=["timestamp", "price"])
+        df_btc["time"] = pd.to_datetime(df_btc["timestamp"], unit="ms")
+        fig_btc = px.line(df_btc, x="time", y="price", title="Bitcoin Price (24h)", color_discrete_sequence=["gold"])
+        fig_btc.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font=dict(color="white"))
+        st.plotly_chart(fig_btc, use_container_width=True)
+    else:
+        st.info("No price data received from CoinGecko.")
+except Exception as e:
+    st.error(f"⚠️ Could not load Bitcoin data: {e}")
 
 # --- Footer ---
 st.markdown("""
