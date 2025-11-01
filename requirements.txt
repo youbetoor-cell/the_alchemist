@@ -1,5 +1,8 @@
 openai
-streamlit
-pandas
 requests
-python-dotenv
+pandas
+langchain
+streamlit
+crewAI
+yfinance
+plotly
