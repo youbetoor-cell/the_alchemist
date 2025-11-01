@@ -1,65 +1,74 @@
 import streamlit as st
+import pandas as pd
 import json
 from pathlib import Path
-import pandas as pd
 import plotly.express as px
+from datetime import datetime
 
 st.set_page_config(page_title="🧙‍♂️ The Alchemist", layout="wide")
 
-st.title("🧙‍♂️ The Alchemist: Intelligence Dashboard")
-st.caption("Real-time insights across domains — crypto, stocks, sports, and more.")
+# --- Header ---
+st.markdown("""
+<div style='text-align:center; padding: 1.5rem; background: linear-gradient(90deg, #1f1c2c, #928dab); border-radius: 15px;'>
+<h1 style='color:white;'>🧙‍♂️ The Alchemist Intelligence Dashboard</h1>
+<p style='color:#e0e0e0; font-size:1.2rem;'>Real-time AI-powered insights across markets and trends</p>
+</div>
+""", unsafe_allow_html=True)
 
-# --- Load summary file ---
 summary_path = Path("data/summary.json")
-if summary_path.exists():
-    with open(summary_path, "r") as f:
-        summary = json.load(f)
-
-    st.write("📅 Generated at:", summary["generated_at"])
-    df = pd.DataFrame(summary["details"])
-    st.dataframe(df, use_container_width=True)
-
-    top = max(summary["details"], key=lambda x: x["score"])
-    st.success(f"🔥 Top performer: {top['name'].capitalize()} with score {top['score']}")
-
-else:
-    st.warning("No summary file found yet. Run `python main.py` to generate data.")
+if not summary_path.exists():
+    st.warning("No summary file found yet. Run `python main.py` or wait for the next auto-update.")
     st.stop()
 
-# --- Live Crypto Data ---
-crypto_path = Path("data/reports/crypto_report.json")
-if crypto_path.exists():
-    with open(crypto_path, "r") as f:
-        crypto = json.load(f)
-    st.header("💰 Live Crypto Snapshot")
-    st.json(crypto)
-    fig = px.bar(
-        x=["Change (24h)"],
-        y=[crypto["change_24h"]],
-        title=f"{crypto['top_coin']} (24h % change)",
-        labels={"x": "Metric", "y": "Change (%)"},
-        color=[crypto["change_24h"]],
-        color_continuous_scale=["red", "green"],
-    )
-    st.plotly_chart(fig, use_container_width=True)
-else:
-    st.warning("No crypto report found yet.")
+# --- Load summary ---
+with open(summary_path) as f:
+    summary = json.load(f)
 
-# --- Live Stocks Data ---
-stocks_path = Path("data/reports/stocks_report.json")
-if stocks_path.exists():
-    with open(stocks_path, "r") as f:
-        stocks = json.load(f)
-    st.header("💹 Live Stock Snapshot")
-    st.json(stocks)
-    fig2 = px.bar(
-        x=["Change (1d)"],
-        y=[stocks["change_1d"]],
-        title=f"{stocks['ticker']} (1-day % change)",
-        labels={"x": "Metric", "y": "Change (%)"},
-        color=[stocks["change_1d"]],
-        color_continuous_scale=["red", "green"],
-    )
-    st.plotly_chart(fig2, use_container_width=True)
-else:
-    st.warning("No stocks report found yet.")
+st.sidebar.markdown("### 🕒 Last Updated")
+st.sidebar.info(summary.get("generated_at", "N/A"))
+
+ranking = pd.DataFrame(summary.get("details", []))
+
+# --- Display Leaderboard ---
+st.markdown("## 🏆 Domain Performance Rankings")
+st.dataframe(
+    ranking[["name", "score", "summary"]]
+    .sort_values(by="score", ascending=False)
+    .reset_index(drop=True),
+    use_container_width=True
+)
+
+# --- Chart Section ---
+st.markdown("## 📈 Visual Performance Overview")
+
+fig = px.bar(
+    ranking.sort_values(by="score", ascending=False),
+    x="name",
+    y="score",
+    color="score",
+    color_continuous_scale="Blues",
+    title="Agent Confidence Scores"
+)
+fig.update_layout(
+    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="rgba(0,0,0,0)",
+    font=dict(color="white")
+)
+st.plotly_chart(fig, use_container_width=True)
+
+# --- Insights ---
+top_agent = ranking.sort_values("score", ascending=False).iloc[0]
+st.markdown(f"""
+### 🧠 The Alchemist Insight  
+> **Top Performer:** `{top_agent['name'].capitalize()}`  
+> **Score:** `{round(top_agent['score'], 3)}`  
+> **Summary:** {top_agent['summary']}
+""")
+
+# --- Footer ---
+st.markdown("""
+<hr>
+<p style='text-align:center; color:gray; font-size:0.8rem;'>
+© 2025 The Alchemist AI — Automated Intelligence Framework
+</p>
+""", unsafe_allow_html=True)
