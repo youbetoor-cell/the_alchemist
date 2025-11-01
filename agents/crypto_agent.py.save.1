@@ -1,0 +1,64 @@
+import json
+from pathlib import Path
+
+class CryptoAgent:
+    def __init__(self):
+        self.name = "crypto"
+        self.report_path = Path("data/reports/crypto_report.json")
+
+    def fetch_data(self):
+        return {"top_coin": "Bitcoin", "change_24h": 1.28, "signal": "buy"}
+
+    def analyze(self, data):
+        return {
+            "name": self.name,
+            "score": 0.48,
+            "summary": "Top coin: {}, 24h change={}%, signal={}".format(
+                data["top_coin"], data["change_24h"], data["signal"]
+            ),
+        }
+
+    def run(self):
+        print("🔹 Running CryptoAgent...")
+        data = self.fetch_data()
+        report = self.analyze(data)
+        self.report_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.report_path, "w") as f:
+            json.dump(report, f, indent=2)
+        print("🔹 Crypto report saved: {}".format(self.report_path))
+        return report
+# agents/crypto_agent.py
+
+import json
+from pathlib import Path
+
+class CryptoAgent:
+    def __init__(self):
+        self.name = "crypto"
+        # File path for JSON report
+        self.report_path = Path("data/reports/crypto_report.json")
+
+    def fetch_data(self):
+        """
+        Mock function to fetch crypto data.
+        Replace with CoinGecko or other API later.
+        """
+        top_coin = "Bitcoin"
+        change_24h = 1.28
+        signal = "buy"
+        return {"top_coin": top_coin, "change_24h": change_24h, "signal": signal}
+
+    def analyze(self, data):
+        """
+        Convert fetched data into a report with a score and summary.
+        """
+        score = 0.48  # mock score
+        summary = "Top coin: {}, 24h change={}%, signal={}".format(
+            data['top_coin'], data['change_24h'], data['signal']
+        )
+        return {"name": self.name, "score": score, "summary": summary}
+
+    def run(self):
+        """
+        Run the agent: fetch data, analyze, save JSON report, return report.
+        """

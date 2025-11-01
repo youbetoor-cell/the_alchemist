@@ -1,0 +1,82 @@
+import json
+from pathlib import Path
+
+class CryptoAgent:
+    def __init__(self):
+        self.name = "crypto"
+        # File path for JSON report
+        self.report_path = Path("data/reports/crypto_report.json")
+
+    def fetch_data(self):
+        """
+        Mock function to fetch crypto data.
+        Replace with CoinGecko or other API later.
+        """
+        top_coin = "Bitcoin"
+        change_24h = 1.28
+        signal = "buy"
+        return {"top_coin": top_coin, "change_24h": change_24h, "signal": signal}
+
+    def analyze(self, data):
+        """
+        Convert fetched data into a report with a score and summary.
+        """
+        score = 0.48  # mock score
+        summary = f"Top coin: {data['top_coin']}, 24h change={data['change_24h']}%, signal={data['signal']}"
+        return {"name": self.name, "score": score, "summary": summary}
+
+    def run(self):
+        """
+        Run the agent: fetch data, analyze, save JSON report, return report.
+        """
+        print("🔹 Running CryptoAgent...")  # debug line
+
+        # 1️⃣ Fetch and analyze
+        data = self.fetch_data()
+        report = self.analyze(data)
+
+        # 2️⃣ Ensure folder exists
+        self.report_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # 3️⃣ Save report
+        with open(self.report_path, "w") as f:
+            json.dump(report, f, indent=2)
+
+        # 4️⃣ Debug prints
+        print(f"🔹 Crypto report saved: {self.report_path}")
+        print(f"🔹 Report content: {report}")
+
+        # 5️⃣ Return report for main.py or manager
+        return report
+# agents/crypto_agent.py
+
+from pathlib import Path
+import json
+import os
+
+class CryptoAgent:
+    def __init__(self):
+        self.name = "crypto"
+        # Absolute path ensures the report always goes to the project folder
+        self.report_path = Path(os.path.dirname(__file__)).parent / "data" / "reports" / "crypto_report.json"
+
+    def fetch_data(self):
+        return {"top_coin": "Bitcoin", "change_24h": 1.28, "signal": "buy"}
+
+    def analyze(self, data):
+        score = 0.48
+        summary = f"Top coin: {data['top_coin']}, 24h change={data['change_24h']}%, signal={data['signal']}"
+        return {"name": self.name, "score": score, "summary": summary}
+
+    def run(self):
+        print("🔹 Running CryptoAgent...")
+        data = self.fetch_data()
+        report = self.analyze(data)
+
+        self.report_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.report_path, "w") as f:
+            json.dump(report, f, indent=2)
+
+        print(f"🔹 Crypto report saved: {self.report_path}")
+        print(f"🔹 Report content: {report}")
+        return report

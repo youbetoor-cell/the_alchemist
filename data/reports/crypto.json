@@ -1,0 +1,8 @@
+{
+  "summary": "Mock analysis for crypto: value=0.32, signal=sell, conf=0.68",
+  "signal": "sell",
+  "confidence": 0.68,
+  "time_horizon_days": 3,
+  "generated_at": "2025-10-31T16:44:21.953626Z",
+  "agent": "crypto"
+}

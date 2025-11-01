@@ -1,0 +1,43 @@
+{
+  "generated_at": "2025-10-31T00:00:00Z",
+  "ranking": [
+    "crypto",
+    "stocks",
+    "sports",
+    "music",
+    "social",
+    "forex"
+  ],
+  "details": [
+    {
+      "name": "sports",
+      "score": 0.5,
+      "summary": "Mock analysis for sports: value=0.56, signal=hold, conf=0.5"
+    },
+    {
+      "name": "stocks",
+      "score": 0.261,
+      "summary": "AAPL closed at $270.37 (-2.39% today) \u2014 signal=sell"
+    },
+    {
+      "name": "forex",
+      "score": 0.5,
+      "summary": "Mock analysis for forex: value=0.76, signal=buy, conf=0.76"
+    },
+    {
+      "name": "crypto",
+      "score": 0.631,
+      "summary": "Top coin: Bitcoin (BTC), price $110306, 24h change 1.31%, signal=buy"
+    },
+    {
+      "name": "social",
+      "score": 0.5,
+      "summary": "Mock analysis for social: value=0.79, signal=buy, conf=0.79"
+    },
+    {
+      "name": "music",
+      "score": 0.5,
+      "summary": "Mock analysis for music: value=0.96, signal=buy, conf=0.96"
+    }
+  ]
+}

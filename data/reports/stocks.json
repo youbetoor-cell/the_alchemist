@@ -1,0 +1,8 @@
+{
+  "summary": "Mock analysis for stocks: value=0.97, signal=buy, conf=0.97",
+  "signal": "buy",
+  "confidence": 0.97,
+  "time_horizon_days": 3,
+  "generated_at": "2025-11-01T16:34:22.139679Z",
+  "agent": "stocks"
+}
