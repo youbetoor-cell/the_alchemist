@@ -34,4 +34,3 @@ jobs:
           git add data/summary.json data/reports/*.json || true
           git commit -m "Auto-update data from GitHub Actions" || echo "No changes to commit"
           git push
-
