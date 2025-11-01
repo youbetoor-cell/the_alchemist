@@ -1,0 +1,37 @@
+name: 🔁 Update The Alchemist Data
+
+on:
+  schedule:
+    # Runs every day at 08:00 UTC (adjust as needed)
+    - cron: "0 8 * * *"
+  workflow_dispatch:   # allows manual trigger too
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run The Alchemist main script
+        run: |
+          python main.py
+
+      - name: Commit and push updated data
+        run: |
+          git config --global user.name "The Alchemist Bot"
+          git config --global user.email "bot@thealchemist.ai"
+          git add data/summary.json data/reports/*.json || true
+          git commit -m "Auto-update data from GitHub Actions" || echo "No changes to commit"
+          git push
+
