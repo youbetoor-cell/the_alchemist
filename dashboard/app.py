@@ -142,9 +142,80 @@ force_show = ["bitcoin", "ethereum", "solana"]
 
 try:
     url = "https://api.coingecko.com/api/v3/coins/markets"
-    params = {"vs_currency": "usd", "order": "market_cap_desc", "per_page": 100, "page": 1}
-    markets = requests.get(url, params=params, timeout=25).json()
-    df = pd.DataFrame(markets)[["id", "symbol", "name", "total_volume", "current_price", "price_change_percentage_24h"]]
+    params = {
+        "vs_currency": "usd",
+        "order": "market_cap_desc",
+        "per_page": 100,
+        "page": 1,
+        "sparkline": False
+    }
+
+    response = requests.get(url, params=params, timeout=25)
+
+    if response.status_code != 200:
+        raise ValueError(f"CoinGecko API returned {response.status_code}")
+
+    markets = response.json()
+
+    # Validate API response
+    if not isinstance(markets, list) or len(markets) == 0:
+        raise ValueError("Empty or invalid CoinGecko response")
+
+    # Extract fields safely
+    first = markets[0]
+    expected_keys = {"id", "symbol", "name", "total_volume", "current_price", "price_change_percentage_24h"}
+    missing = expected_keys - set(first.keys())
+    if missing:
+        st.warning(f"⚠️ Missing fields from API: {missing}. Will use fallback parsing.")
+
+    df = pd.DataFrame(markets)
+
+    # Keep only existing valid columns
+    cols = [c for c in ["id", "symbol", "name", "total_volume", "current_price", "price_change_percentage_24h"] if c in df.columns]
+    df = df[cols]
+
+    if df.empty:
+        st.warning("⚠️ CoinGecko returned no usable data (rate limit or invalid response). Try again soon.")
+    else:
+        st.success(f"💹 Loaded {len(df)} coins successfully from CoinGecko")
+
+        # Force-show BTC, ETH, SOL
+        df_force = df[df["id"].isin(force_show)]
+        for _, row in df_force.iterrows():
+            mc_url = f"https://api.coingecko.com/api/v3/coins/{row['id']}/market_chart"
+            mc_params = {"vs_currency": "usd", "days": "1"}
+            mc = requests.get(mc_url, params=mc_params, timeout=25).json()
+            prices = pd.DataFrame(mc.get("prices", []), columns=["ts", "price"])
+            volumes = pd.DataFrame(mc.get("total_volumes", []), columns=["ts", "volume"])
+            prices["dt"] = pd.to_datetime(prices["ts"], unit="ms")
+            volumes["dt"] = pd.to_datetime(volumes["ts"], unit="ms")
+
+            if len(prices) > 5 and len(volumes) > 5:
+                fig = go.Figure()
+                fig.add_trace(go.Bar(
+                    x=volumes["dt"], y=volumes["volume"],
+                    name="Volume", marker_color="#00e6b8", yaxis="y1"
+                ))
+                fig.add_trace(go.Scatter(
+                    x=prices["dt"], y=prices["price"],
+                    mode="lines", line=dict(color="#d4af37", width=2),
+                    name="Price (USD)", yaxis="y2"
+                ))
+                fig.update_layout(
+                    title=f"{row['name']} ({row['symbol'].upper()}) — 30m Volume & Price",
+                    barmode="overlay", height=180,
+                    paper_bgcolor="#0a0a0f", plot_bgcolor="#0a0a0f",
+                    font=dict(color="#e0e0e0", size=10),
+                    margin=dict(l=0, r=0, t=30, b=0),
+                    yaxis=dict(title="Volume"),
+                    yaxis2=dict(title="Price", overlaying="y", side="right")
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info(f"ℹ️ Not enough data for {row['name']}.")
+except Exception as e:
+    st.warning(f"⚠️ Detector unavailable: {e}")
+
 
     df_force = df[df["id"].isin(force_show)]
     for _, row in df_force.iterrows():
