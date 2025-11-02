@@ -186,13 +186,36 @@ try:
     import openai
     import os
 
-    api_key = os.getenv("OPENAI_API_KEY", "")
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if not api_key:
         st.warning("⚠️ AI summaries disabled — missing `OPENAI_API_KEY`.")
     else:
+        # ✅ Compatible with OpenAI >=1.0.0
         from openai import OpenAI
-        client = OpenAI()
-        client.api_key = api_key  # manually attach key to bypass Streamlit proxy issue
+        client = OpenAI(api_key=api_key)
 
+        summaries = []
         for _, row in df_sorted.iterrows():
-            prompt = f"Provide a concise market sentiment summary
+            prompt = f"Provide a one-sentence financial sentiment summary for {row['name']} based on: {row['summary']}"
+            try:
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "You are The Alchemist AI, a concise financial sentiment analyst."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=60
+                )
+                ai_summary = response.choices[0].message.content.strip()
+            except Exception as e:
+                ai_summary = f"⚠️ AI summary unavailable ({e})"
+            summaries.append((row['name'], ai_summary))
+
+        for name, ai_summary in summaries:
+            st.markdown(
+                f"<div class='card'><b>{name.capitalize()}</b><br>"
+                f"<span style='color:#00e6b8;'>{ai_summary}</span></div>",
+                unsafe_allow_html=True
+            )
+except Exception as e:
+    st.warning(f"⚠️ AI summarization unavailable: {e}")
