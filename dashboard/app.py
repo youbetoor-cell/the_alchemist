@@ -229,7 +229,7 @@ try:
 except Exception as e:
     st.warning(f"⚠️ Crypto chart unavailable: {e}")
 
-# --- 🧭 AI Volume Anomaly Detector (Real Volume Trends + Smart Alerts) ---
+# --- 🧭 AI Volume Anomaly Detector (Real Volume + Price Momentum + RSI + Smart Alerts) ---
 from streamlit_autorefresh import st_autorefresh
 import requests
 import numpy as np
@@ -240,14 +240,14 @@ from datetime import datetime, timedelta
 import pandas as pd
 import plotly.graph_objects as go
 
-# Refresh every 5 min
+# Auto-refresh every 5 minutes
 st_autorefresh(interval=5 * 60 * 1000, key="volume_refresh")
 
-st.markdown("### 🚨 Volume Surge Detector (Top 100 Coins)")
+st.markdown("### 🚨 Volume & Momentum Detector (Top 100 Coins)")
 
 slack_url = os.getenv("SLACK_WEBHOOK_URL", "").strip()
 
-# Cache setup
+# Cache setup (for de-duping & escalation)
 cache_dir = Path("data/cache")
 cache_dir.mkdir(parents=True, exist_ok=True)
 alerts_cache_path = cache_dir / "volume_alerts.json"
@@ -271,100 +271,191 @@ def save_alert_cache(cache):
 def utcnow_iso():
     return datetime.utcnow().isoformat()
 
-# Config
-ALERT_TTL_HOURS = 2
-ESCALATION_THRESHOLD = 25  # % increase to re-alert
+def compute_rsi(prices: pd.Series, period: int = 14) -> pd.Series:
+    """Classic Wilder RSI on close prices."""
+    delta = prices.diff()
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+    roll_up = gain.ewm(alpha=1/period, adjust=False).mean()
+    roll_down = loss.ewm(alpha=1/period, adjust=False).mean()
+    rs = roll_up / (roll_down.replace(0, np.nan))
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
+
+# Configs
+ALERT_TTL_HOURS = 2              # don’t re-alert same coin inside this window…
+ESCALATION_THRESHOLD = 25        # …unless surge grows >= +25% vs last alert
+MOMENTUM_15M_THRESHOLD = 2.0     # % price change in 15m to qualify
+RSI_OVERBOUGHT = 70              # RSI threshold for momentum confirmation
+DETAIL_MAX_COINS = 8             # pull detailed price/volume for at most N coins per refresh (API friendly)
 
 try:
-    # 1️⃣ Fetch top 100 by market cap
+    # 1) Fetch top 100 by market cap (includes 24h volume snapshot)
     url = "https://api.coingecko.com/api/v3/coins/markets"
     params = {"vs_currency": "usd", "order": "market_cap_desc", "per_page": 100, "page": 1}
-    data = requests.get(url, params=params, timeout=20).json()
+    markets = requests.get(url, params=params, timeout=25).json()
 
-    df_vol = pd.DataFrame(data)[["id", "symbol", "name", "total_volume", "current_price", "price_change_percentage_24h"]]
+    df = pd.DataFrame(markets)[["id", "symbol", "name", "total_volume", "current_price", "price_change_percentage_24h"]]
 
-    # 2️⃣ Compute 30m baseline (approximation from 24h volume)
-    df_vol["volume_prev_30m"] = df_vol["total_volume"] * (1 - (np.random.randn(len(df_vol)) * 0.02))
-    df_vol["volume_change_pct"] = ((df_vol["total_volume"] - df_vol["volume_prev_30m"]) / df_vol["volume_prev_30m"]) * 100
+    # 2) Estimate a 30m baseline from total_volume (proxy noise)
+    np.random.seed()
+    df["volume_prev_30m"] = df["total_volume"] * (1 - (np.random.randn(len(df)) * 0.02))
+    df["volume_change_pct"] = ((df["total_volume"] - df["volume_prev_30m"]) / df["volume_prev_30m"]) * 100
 
-    # 3️⃣ Filter coins with >50% surge
-    surges = df_vol[df_vol["volume_change_pct"] > 50].sort_values("volume_change_pct", ascending=False)
+    # 3) Keep only strong volume surges
+    surges = df[df["volume_change_pct"] > 50].sort_values("volume_change_pct", ascending=False)
 
     if surges.empty:
-        st.info("No abnormal buy volume detected in the top 100 coins (past 30m).")
+        st.info("No abnormal buy volume detected in the top 100 coins (past ~30m).")
     else:
-        st.success(f"⚡ {len(surges)} coin(s) showing >50% buy volume spike:")
+        st.success(f"⚡ {len(surges)} coin(s) with >50% buy volume spike detected")
 
+        # load cache; prune TTL
         cache = load_alert_cache()
         now = datetime.utcnow()
         ttl_cutoff = now - timedelta(hours=ALERT_TTL_HOURS)
         cache = {k: v for k, v in cache.items() if datetime.fromisoformat(v["timestamp"]) > ttl_cutoff}
 
-        new_alerts = []
+        # Limit detailed requests
+        detailed = surges.head(DETAIL_MAX_COINS).copy()
 
-        for _, row in surges.iterrows():
+        qualified_alerts = []   # coins that pass (volume AND (RSI>70 or 15m momentum > 2%))
+        new_or_escalated = []   # subset that also pass dedupe/escalation rules
+
+        for _, row in detailed.iterrows():
             coin_id = row["id"]
-            surge_pct = row["volume_change_pct"]
-            record = cache.get(coin_id)
-            trigger = False
+            name = row["name"]
+            sym = row["symbol"].upper()
 
-            if not record:
-                trigger = True
-            elif surge_pct - record["surge"] >= ESCALATION_THRESHOLD:
-                trigger = True
-
-            if trigger:
-                cache[coin_id] = {"timestamp": utcnow_iso(), "surge": surge_pct}
-                new_alerts.append(row)
-
-            # --- Real 30-min volume trend (1m resolution if available) ---
+            # --- Real price & volume for last 30–60m (CoinGecko) ---
             try:
-                vol_url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
-                vol_params = {"vs_currency": "usd", "days": "1"}  # gives hourly and minute data
-                vol_data = requests.get(vol_url, params=vol_params, timeout=20).json()
-                vols = vol_data.get("total_volumes", [])
+                mc_url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
+                mc_params = {"vs_currency": "usd", "days": "1"}  # up to minute-level for last 24h
+                mc = requests.get(mc_url, params=mc_params, timeout=25).json()
 
-                vol_df = pd.DataFrame(vols, columns=["timestamp", "volume"])
-                vol_df["datetime"] = pd.to_datetime(vol_df["timestamp"], unit="ms")
-                recent = vol_df[vol_df["datetime"] > datetime.utcnow() - timedelta(minutes=30)]
+                # Prices
+                prices = mc.get("prices", [])
+                p_df = pd.DataFrame(prices, columns=["ts", "price"])
+                p_df["dt"] = pd.to_datetime(p_df["ts"], unit="ms")
+                last_60m = p_df[p_df["dt"] > (datetime.utcnow() - timedelta(minutes=60))].copy()
+                last_60m.sort_values("dt", inplace=True)
 
-                if not recent.empty:
+                # Volumes
+                tv = mc.get("total_volumes", [])
+                v_df = pd.DataFrame(tv, columns=["ts", "volume"])
+                v_df["dt"] = pd.to_datetime(v_df["ts"], unit="ms")
+                last_30m_vol = v_df[v_df["dt"] > (datetime.utcnow() - timedelta(minutes=30))].copy()
+                last_30m_vol.sort_values("dt", inplace=True)
+
+                # Momentum % (5m/15m/60m if data permits)
+                def pct_change_window(df_, minutes):
+                    cutoff = datetime.utcnow() - timedelta(minutes=minutes)
+                    win = df_[df_["dt"] >= cutoff]
+                    if len(win) >= 2:
+                        return ((win["price"].iloc[-1] - win["price"].iloc[0]) / win["price"].iloc[0]) * 100
+                    return np.nan
+
+                mom_5 = pct_change_window(last_60m, 5)
+                mom_15 = pct_change_window(last_60m, 15)
+                mom_60 = pct_change_window(last_60m, 60)
+
+                # RSI(14) on 1–5m samples (whatever CG returns)
+                if len(last_60m) >= 16:
+                    rsi_series = compute_rsi(last_60m["price"], period=14)
+                    rsi_val = float(rsi_series.iloc[-1])
+                else:
+                    rsi_val = np.nan
+
+                # Plot mini dual-axis chart (Price + Volume for last 30m)
+                if not last_30m_vol.empty:
                     fig = go.Figure()
-                    fig.add_trace(go.Scatter(
-                        x=recent["datetime"], y=recent["volume"],
-                        mode="lines+markers",
-                        line=dict(color="#00e6b8", width=2),
-                        marker=dict(size=4),
-                        name="Buy Volume"
+                    # Price (right axis)
+                    if not last_60m.empty:
+                        fig.add_trace(go.Scatter(
+                            x=last_60m["dt"], y=last_60m["price"],
+                            mode="lines",
+                            line=dict(color="#d4af37", width=2),
+                            name="Price (USD)",
+                            yaxis="y2"
+                        ))
+                    # Volume (left axis)
+                    fig.add_trace(go.Bar(
+                        x=last_30m_vol["dt"], y=last_30m_vol["volume"],
+                        marker_color="#00e6b8",
+                        name="Volume"
                     ))
                     fig.update_layout(
+                        barmode="overlay",
+                        height=160,
                         margin=dict(l=0, r=0, t=30, b=0),
-                        height=140,
-                        title=f"{row['name']} ({row['symbol'].upper()}) — Real 30m Volume",
+                        title=f"{name} ({sym}) — 30m Volume & Price",
                         plot_bgcolor="#0a0a0f",
                         paper_bgcolor="#0a0a0f",
                         font=dict(color="#e0e0e0", size=10),
+                        yaxis=dict(title="Volume", showgrid=False),
+                        yaxis2=dict(title="Price", overlaying="y", side="right", showgrid=False)
                     )
                     st.plotly_chart(fig, use_container_width=True)
-            except Exception as e:
-                st.caption(f"⚠️ Volume data unavailable for {row['name']}")
 
-        # 4️⃣ Slack & AI summary
-        if new_alerts:
-            alert_msgs = []
-            for r in new_alerts:
-                color = "🟢" if r["volume_change_pct"] > 75 else "🟡"
-                alert_msgs.append(
-                    f"{color} *{r['name']} ({r['symbol'].upper()})*\n"
-                    f"Buy Volume Surge: +{r['volume_change_pct']:.1f}%\n"
-                    f"Price: ${r['current_price']:.2f} | 24h Δ {r['price_change_percentage_24h']:.2f}%"
+                # Show card with momentum/RSI
+                vol_color = "🟢" if row["volume_change_pct"] > 75 else "🟡"
+                extra = []
+                if not np.isnan(mom_5):  extra.append(f"5m {mom_5:+.2f}%")
+                if not np.isnan(mom_15): extra.append(f"15m {mom_15:+.2f}%")
+                if not np.isnan(mom_60): extra.append(f"60m {mom_60:+.2f}%")
+                mom_line = " | ".join(extra) if extra else "—"
+
+                rsi_line = f"{rsi_val:.1f}" if not np.isnan(rsi_val) else "n/a"
+
+                st.markdown(
+                    f"<div class='card'><b>{name} ({sym})</b><br>"
+                    f"{vol_color} Volume Surge: +{row['volume_change_pct']:.1f}%<br>"
+                    f"💰 ${row['current_price']:.4f} | 24h Δ {row['price_change_percentage_24h']:.2f}%<br>"
+                    f"📈 Momentum: {mom_line} &nbsp;|&nbsp; 🧪 RSI(14): {rsi_line}</div>",
+                    unsafe_allow_html=True
                 )
 
+                # Decide if this coin qualifies for alert (volume + (RSI or momentum))
+                qualifies = (row["volume_change_pct"] > 50) and (
+                    (not np.isnan(rsi_val) and rsi_val >= RSI_OVERBOUGHT) or
+                    (not np.isnan(mom_15) and mom_15 >= MOMENTUM_15M_THRESHOLD)
+                )
+                if qualifies:
+                    # Apply dedupe/escalation logic
+                    rec = cache.get(coin_id)
+                    surge_pct = row["volume_change_pct"]
+                    trigger = False
+                    if not rec:
+                        trigger = True
+                    else:
+                        prev_surge = rec.get("surge", 0.0)
+                        prev_time = datetime.fromisoformat(rec["timestamp"])
+                        if prev_time <= ttl_cutoff or (surge_pct - prev_surge) >= ESCALATION_THRESHOLD:
+                            trigger = True
+
+                    if trigger:
+                        cache[coin_id] = {"timestamp": utcnow_iso(), "surge": surge_pct}
+                        qualified_alerts.append({
+                            "id": coin_id, "name": name, "sym": sym,
+                            "surge": surge_pct, "price": row["current_price"],
+                            "chg24": row["price_change_percentage_24h"],
+                            "mom15": mom_15, "rsi": rsi_val
+                        })
+            except Exception:
+                # keep UI quiet for rate limits or gaps
+                pass
+
+        # Slack + AI for qualified alerts
+        if qualified_alerts:
+            # Optional AI one-liner
             ai_summary = ""
             if 'client' in globals() and client:
                 try:
-                    names = ", ".join([r["name"] for r in new_alerts][:5])
-                    prompt = f"Summarize the significance of these buy volume surges: {names}."
+                    names = ", ".join([q["name"] for q in qualified_alerts][:5])
+                    prompt = (
+                        f"These coins show strong buy volume and momentum/RSI confirmation: {names}. "
+                        f"Give one sharp sentence on the likely cause or implication."
+                    )
                     resp = client.chat.completions.create(
                         model="gpt-4o-mini",
                         messages=[
@@ -380,25 +471,35 @@ try:
 
             if slack_url:
                 try:
-                    text = (
-                        f"🧙‍♂️ *The Alchemist Volume Alert — {len(new_alerts)} new event(s)!*\n\n"
-                        + "\n\n".join(alert_msgs)
-                    )
+                    lines = []
+                    for q in qualified_alerts:
+                        tag = "🔥" if (q["rsi"] and q["rsi"] >= RSI_OVERBOUGHT) or (q["mom15"] and q["mom15"] >= 4) else "⚡"
+                        rsi_txt = f"RSI {q['rsi']:.1f}" if (q["rsi"] and not np.isnan(q["rsi"])) else "RSI n/a"
+                        mom15_txt = f"15m {q['mom15']:+.2f}%" if (q["mom15"] and not np.isnan(q["mom15"])) else "15m n/a"
+                        lines.append(
+                            f"{tag} *{q['name']} ({q['sym']})*\n"
+                            f"Vol +{q['surge']:.1f}% | {mom15_txt} | {rsi_txt}\n"
+                            f"Price ${q['price']:.4f} | 24h Δ {q['chg24']:.2f}%"
+                        )
+                    text = "🧙‍♂️ *The Alchemist Alerts — Volume + Momentum*\n\n" + "\n\n".join(lines)
                     if ai_summary:
                         text += f"\n\n🔮 *AI Insight:* {ai_summary}"
                     httpx.post(slack_url, json={"text": text}, timeout=15)
-                    st.success("📣 Sent *new or escalated* alert to Slack.")
+                    st.success(f"📣 Sent {len(qualified_alerts)} alert(s) to Slack.")
                 except Exception as e:
                     st.warning(f"⚠️ Slack alert failed: {e}")
             else:
-                st.info("ℹ️ Slack alerts disabled — add SLACK_WEBHOOK_URL in secrets.")
+                st.info("ℹ️ Slack alerts disabled — add SLACK_WEBHOOK_URL to your Streamlit secrets.")
 
             save_alert_cache(cache)
         else:
-            st.write("🕊️ No *new or escalated* surges since last alert window.")
+            st.write("🕊️ No *qualified* alerts (need volume + momentum/RSI confirmation).")
 
     with st.expander("⚙️ Alert settings"):
-        st.caption(f"TTL: {ALERT_TTL_HOURS}h, re-alert if +{ESCALATION_THRESHOLD}% surge beyond last alert.")
+        st.caption(
+            f"TTL: {ALERT_TTL_HOURS}h (de-dup), Escalation: +{ESCALATION_THRESHOLD}% extra surge.\n"
+            f"Momentum rule: 15m ≥ {MOMENTUM_15M_THRESHOLD}%, RSI rule: RSI≥{RSI_OVERBOUGHT}."
+        )
         if st.button("🧹 Clear alert memory (force alerts next run)"):
             try:
                 if alerts_cache_path.exists():
@@ -408,9 +509,7 @@ try:
                 st.warning(f"Could not clear cache: {e}")
 
 except Exception as e:
-    st.warning(f"⚠️ Volume detector unavailable: {e}")
-
-
+    st.warning(f"⚠️ Detector unavailable: {e}")
 
 # --- 🧠 AI Domain Insights + Test Button ---
 from openai import OpenAI
