@@ -49,3 +49,37 @@ def run_once():
 
 if __name__ == "__main__":
     run_once()
+
+# --- Save to historical timeline ---
+from datetime import datetime
+import json, os
+from pathlib import Path
+
+history_file = Path("data/history.json")
+
+# Load existing history if available
+if history_file.exists():
+    with open(history_file, "r") as f:
+        history = json.load(f)
+else:
+    history = []
+
+# Append new records from this run
+timestamp = datetime.utcnow().isoformat()
+for item in summary["details"]:
+    history.append({
+        "timestamp": timestamp,
+        "domain": item["name"],
+        "score": item["score"],
+        "sentiment": item.get("sentiment", "neutral")
+    })
+
+# Keep only the last 500 records
+history = history[-500:]
+
+# Save back to file
+with open(history_file, "w") as f:
+    json.dump(history, f, indent=2)
+
+print("🧠 Historical data updated —", len(history), "total records")
+

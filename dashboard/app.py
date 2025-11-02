@@ -121,6 +121,35 @@ if summary_path.exists():
     )
     st.plotly_chart(fig, use_container_width=True)
 
+# --- Historical Performance Chart ---
+hist_path = Path("data/history.json")
+if hist_path.exists():
+    with open(hist_path, "r") as f:
+        hist = json.load(f)
+    hist_df = pd.DataFrame(hist)
+    hist_df["timestamp"] = pd.to_datetime(hist_df["timestamp"])
+
+    st.markdown("### ⏳ Performance Over Time")
+    domain_choice = st.selectbox("Select domain:", hist_df["domain"].unique())
+
+    filtered = hist_df[hist_df["domain"] == domain_choice].sort_values("timestamp")
+    fig_hist = px.line(
+        filtered,
+        x="timestamp",
+        y="score",
+        title=f"{domain_choice.capitalize()} — Score Trend",
+        markers=True,
+        line_shape="spline",
+        color_discrete_sequence=["#00e6b8"]
+    )
+    fig_hist.update_layout(
+        plot_bgcolor="#0a0a0f",
+        paper_bgcolor="#0a0a0f",
+        font=dict(color="#e0e0e0"),
+        title_font=dict(color="#d4af37", size=20),
+    )
+    st.plotly_chart(fig_hist, use_container_width=True)
+
     # --- 7-Day Bitcoin Chart (safe version) ---
     try:
         import requests
