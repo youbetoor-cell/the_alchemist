@@ -15,7 +15,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# --- Elegant Dark Theme with Subtle Gold & Cyan Accents ---
+# --- Balanced Dark-Gold-Cyan Theme with Subtle Glow Animations ---
 st.markdown("""
 <style>
 body {
@@ -24,10 +24,14 @@ body {
     font-family: 'Inter', sans-serif;
     overflow-x: hidden;
 }
+
+/* Headings */
 h1, h2, h3 {
     color: #f7e28f !important;
     text-shadow: 0 0 18px rgba(255, 215, 0, 0.4);
 }
+
+/* Buttons */
 .stButton>button {
     background: linear-gradient(90deg, #b8860b, #00b3b3);
     color: #fff;
@@ -41,6 +45,8 @@ h1, h2, h3 {
     background: linear-gradient(90deg, #ffd700, #00e6b8);
     box-shadow: 0 0 18px rgba(255,215,0,0.6);
 }
+
+/* Cards */
 .card {
     background: rgba(18,18,22,0.9);
     border: 1px solid rgba(180,180,180,0.2);
@@ -48,62 +54,75 @@ h1, h2, h3 {
     padding: 1.3rem;
     margin-bottom: 1rem;
     box-shadow: 0 0 20px rgba(255,215,0,0.05);
-    transition: all 0.3s ease;
+    transition: all 0.4s ease;
     text-align: center;
+    animation: softPulse 6s ease-in-out infinite;
 }
 .card:hover {
     transform: translateY(-3px);
-    box-shadow: 0 0 25px rgba(255,215,0,0.2);
+    box-shadow: 0 0 25px rgba(255,215,0,0.25);
 }
+
+/* Pulse glow for energy effect */
+@keyframes softPulse {
+  0% { box-shadow: 0 0 15px rgba(255,215,0,0.08); }
+  50% { box-shadow: 0 0 25px rgba(0,255,230,0.25); }
+  100% { box-shadow: 0 0 15px rgba(255,215,0,0.08); }
+}
+
+/* Highlighted card (top performer) */
 .highlight {
     border: 1px solid #ffd700;
     box-shadow: 0 0 35px rgba(255, 215, 0, 0.5);
+    animation: pulseGold 4s ease-in-out infinite;
 }
-svg {
-    transform: rotate(-90deg);
+@keyframes pulseGold {
+  0% { box-shadow: 0 0 30px rgba(255,215,0,0.3); }
+  50% { box-shadow: 0 0 45px rgba(255,215,0,0.6); }
+  100% { box-shadow: 0 0 30px rgba(255,215,0,0.3); }
 }
-circle.bg {
-    stroke: rgba(255, 255, 255, 0.08);
-    stroke-width: 8;
-}
+
+/* Circular Rings */
+svg { transform: rotate(-90deg); }
+circle.bg { stroke: rgba(255, 255, 255, 0.08); stroke-width: 8; }
 circle.fg {
     stroke: url(#alchemyGradient);
     stroke-width: 8;
     stroke-linecap: round;
-    filter: drop-shadow(0 0 4px #ffd700);
+    filter: drop-shadow(0 0 6px #ffd700);
     transition: stroke-dashoffset 1s ease-in-out;
+    animation: glowPulse 5s ease-in-out infinite;
+}
+@keyframes glowPulse {
+  0%, 100% { filter: drop-shadow(0 0 6px #ffd700); }
+  50% { filter: drop-shadow(0 0 12px #00e6b8); }
 }
 
-/* --- Animated Particle Background --- */
+/* Particles */
 #particles {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
   z-index: -1;
   overflow: hidden;
-  background: radial-gradient(circle at 30% 50%, #0b0b0e, #000);
 }
 .particle {
   position: absolute;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,215,0,0.8), rgba(255,215,0,0.1));
-  animation: floatGold 15s infinite ease-in-out;
+  background: radial-gradient(circle, rgba(255,215,0,0.7), rgba(255,215,0,0.1));
+  animation: floatGold 20s infinite ease-in-out;
 }
 .particle.cyan {
-  background: radial-gradient(circle, rgba(0,255,230,0.7), rgba(0,255,230,0.1));
-  animation: floatCyan 18s infinite ease-in-out;
+  background: radial-gradient(circle, rgba(0,255,230,0.5), rgba(0,255,230,0.1));
+  animation: floatCyan 24s infinite ease-in-out;
 }
 @keyframes floatGold {
-  0% { transform: translateY(0px) translateX(0px); opacity: 0.8; }
-  50% { transform: translateY(-40px) translateX(20px); opacity: 0.4; }
-  100% { transform: translateY(0px) translateX(0px); opacity: 0.8; }
+  0%,100% { transform: translateY(0px) translateX(0px); opacity: 0.7; }
+  50% { transform: translateY(-40px) translateX(30px); opacity: 0.3; }
 }
 @keyframes floatCyan {
-  0% { transform: translateY(0px) translateX(0px); opacity: 0.6; }
-  50% { transform: translateY(30px) translateX(-30px); opacity: 0.3; }
-  100% { transform: translateY(0px) translateX(0px); opacity: 0.6; }
+  0%,100% { transform: translateY(0px) translateX(0px); opacity: 0.6; }
+  50% { transform: translateY(30px) translateX(-25px); opacity: 0.2; }
 }
 </style>
 
@@ -116,7 +135,7 @@ circle.fg {
 </div>
 """, unsafe_allow_html=True)
 
-# --- Gradient for Gold → Cyan ring ---
+# --- Gold + Cyan Gradient Definition ---
 st.markdown("""
 <svg width="0" height="0">
   <defs>
@@ -128,14 +147,14 @@ st.markdown("""
 </svg>
 """, unsafe_allow_html=True)
 
-# --- Auto-refresh every 10 minutes ---
+# --- Auto-refresh ---
 st_autorefresh(interval=10 * 60 * 1000, key="refresh")
 
 # --- Header ---
 st.title("⚗️ The Alchemist Intelligence Dashboard")
-st.markdown("### Balanced alchemy — data meets design ⚡")
+st.markdown("### Where precision meets beauty ⚡")
 
-# --- Load summary data ---
+# --- Load summary ---
 summary_path = Path("data/summary.json")
 if summary_path.exists():
     with open(summary_path, "r") as f:
@@ -151,10 +170,9 @@ if summary_path.exists():
 
     st.markdown(f"🏆 **Top Performer:** `{top_name.capitalize()}` — **{top_score:.3f}**")
 
-    # --- Performance Rings ---
+    # --- Cards with Rings ---
     st.markdown("### 🧩 Domain Performance Overview")
     cols = st.columns(3)
-
     for i, row in df_sorted.iterrows():
         style = "card"
         if row["name"] == top_name:
@@ -162,12 +180,10 @@ if summary_path.exists():
 
         with cols[i % 3]:
             st.markdown(f"<div class='{style}'><h3>{row['name'].capitalize()}</h3>", unsafe_allow_html=True)
-
             radius = 45
             circumference = 2 * math.pi * radius
             progress = row["score"]
             offset = circumference * (1 - progress)
-
             st.markdown(f"""
             <div style="display:flex;justify-content:center;">
                 <svg width="120" height="120">
@@ -179,24 +195,31 @@ if summary_path.exists():
             </div>
             <h2 style='color:#f7e28f;margin-top:-10px;'>Score: {row['score']:.3f}</h2>
             """, unsafe_allow_html=True)
+            st.markdown(f"<p style='font-size:0.9em;color:#bfbfbf;'>{row['summary'][:120]}...</p></div>", unsafe_allow_html=True)
 
-            st.markdown(f"<p style='font-size:0.9em;color:#cfcfcf;'>{row['summary'][:120]}...</p></div>", unsafe_allow_html=True)
-
-    # --- Silver-Neon Chart ---
-    st.markdown("### 📊 Performance Comparison")
+    # --- Fixed Domain Scores Overview Chart ---
+    st.markdown("### 📊 Domain Scores Overview")
     fig = px.bar(
         df_sorted,
         x="name",
         y="score",
+        text_auto=".3f",
         color="score",
-        color_continuous_scale=["#b8860b", "#00e6b8"],
-        title="Domain Scores Overview",
+        color_continuous_scale=["#b8860b", "#ffd700", "#00e6b8"],
+        title="Performance Across Domains",
+    )
+    fig.update_traces(
+        textposition="outside",
+        marker_line_width=1.2,
+        marker_line_color="#202020",
     )
     fig.update_layout(
         plot_bgcolor="#0a0a0f",
         paper_bgcolor="#0a0a0f",
         font=dict(color="#e0e0e0"),
         title_font=dict(color="#f7e28f", size=22),
+        xaxis=dict(title="", tickfont=dict(size=14)),
+        yaxis=dict(gridcolor="#1e1e1e"),
     )
     st.plotly_chart(fig, use_container_width=True)
 else:
@@ -205,6 +228,6 @@ else:
 # --- Footer ---
 st.markdown("<hr/>", unsafe_allow_html=True)
 st.markdown(
-    "<p style='text-align:center;color:#f7e28f;'>🧠 The Alchemist AI — balance of gold, silver, and light ✨</p>",
+    "<p style='text-align:center;color:#f7e28f;'>🧠 The Alchemist AI — elegance in equilibrium ✨</p>",
     unsafe_allow_html=True,
 )
