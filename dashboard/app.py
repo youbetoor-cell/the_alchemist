@@ -181,16 +181,18 @@ if hist_path.exists():
 
 # --- AI Sentiment Summaries ---
 from openai import OpenAI
+import httpx
 
 st.markdown("### 🧠 AI Domain Insights")
 
 api_key = os.getenv("OPENAI_API_KEY", "").strip()
 client = None
+
 try:
     if api_key:
-        client = OpenAI(api_key=api_key)
-        # Quick connection test
-        _ = client.models.list()
+        # ✅ Proxy-safe client (Streamlit Cloud compatible)
+        client = OpenAI(api_key=api_key, http_client=httpx.Client(verify=True))
+        _ = client.models.list()  # Test connection
         st.success("✅ AI connection established successfully.")
     else:
         st.warning("⚠️ AI summaries disabled — missing API key.")
