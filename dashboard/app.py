@@ -150,16 +150,23 @@ if summary_path.exists():
     except Exception as e:
         st.warning(f"⚠️ Crypto chart unavailable: {e}")
 
-# --- AI Sentiment Summaries (New SDK Compatible) ---
+# --- AI Sentiment Summaries (Stable Cloud-Safe Version) ---
 st.markdown("### 🧠 AI Domain Insights")
 
 try:
-    from openai import OpenAI
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
+    import openai
+    import os
 
-    if client.api_key:
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    if not api_key:
+        st.warning("⚠️ AI summaries disabled — missing `OPENAI_API_KEY`.")
+    else:
+        from openai import OpenAI
+        client = OpenAI()
+        client.api_key = api_key  # manually attach key to bypass Streamlit proxy issue
+
         for _, row in df_sorted.iterrows():
-            prompt = f"Provide a concise market sentiment summary for {row['name']} based on this data: {row['summary']}"
+            prompt = f"Provide a concise market sentiment summary for {row['name']} based on: {row['summary']}"
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
@@ -175,7 +182,5 @@ try:
                 f"<span style='color:#00e6b8;'>{ai_summary}</span></div>",
                 unsafe_allow_html=True
             )
-    else:
-        st.warning("⚠️ AI summaries disabled — missing `OPENAI_API_KEY`.")
 except Exception as e:
     st.warning(f"⚠️ AI summarization unavailable: {e}")
