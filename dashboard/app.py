@@ -179,36 +179,58 @@ if hist_path.exists():
     except Exception as e:
         st.warning(f"⚠️ Crypto chart unavailable: {e}")
 
-# --- AI Sentiment Summaries (Stable Cloud-Safe Version) ---
+# --- AI Sentiment Summaries (with connection test + friendly feedback) ---
 st.markdown("### 🧠 AI Domain Insights")
 
-try:
-    import openai
-    import os
+import os
+import openai
+from openai import OpenAI
 
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+api_key = os.getenv("OPENAI_API_KEY", "").strip()
+
+# --- Test connection button ---
+st.markdown("#### 🔍 Test AI Connection")
+if st.button("Run Connection Test"):
     if not api_key:
-        st.warning("⚠️ AI summaries disabled — missing `OPENAI_API_KEY`.")
+        st.error("❌ No OpenAI API key found. Please add it under Streamlit Secrets.")
     else:
-        # ✅ Compatible with OpenAI >=1.0.0
-        from openai import OpenAI
-        client = OpenAI(api_key=api_key)
+        try:
+            client = OpenAI(api_key=api_key)
+            test = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are The Alchemist AI."},
+                    {"role": "user", "content": "Say 'connection confirmed'."}
+                ],
+                max_tokens=10
+            )
+            st.success(f"✅ AI connection confirmed: {test.choices[0].message.content.strip()}")
+        except Exception as e:
+            st.error(f"⚠️ Connection failed: {e}")
 
+st.divider()
+
+# --- Sentiment Summaries ---
+if not api_key:
+    st.warning("⚠️ AI summaries disabled — missing `OPENAI_API_KEY` in secrets.")
+else:
+    try:
+        client = OpenAI(api_key=api_key)
         summaries = []
         for _, row in df_sorted.iterrows():
-            prompt = f"Provide a one-sentence financial sentiment summary for {row['name']} based on: {row['summary']}"
+            prompt = f"Provide a short market sentiment summary for {row['name']} based on: {row['summary']}"
             try:
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
-                        {"role": "system", "content": "You are The Alchemist AI, a concise financial sentiment analyst."},
+                        {"role": "system", "content": "You are The Alchemist AI, a concise sentiment analyst."},
                         {"role": "user", "content": prompt}
                     ],
                     max_tokens=60
                 )
                 ai_summary = response.choices[0].message.content.strip()
             except Exception as e:
-                ai_summary = f"⚠️ AI summary unavailable ({e})"
+                ai_summary = f"⚠️ Summary unavailable ({str(e)[:60]}...)"
             summaries.append((row['name'], ai_summary))
 
         for name, ai_summary in summaries:
@@ -217,5 +239,6 @@ try:
                 f"<span style='color:#00e6b8;'>{ai_summary}</span></div>",
                 unsafe_allow_html=True
             )
-except Exception as e:
-    st.warning(f"⚠️ AI summarization unavailable: {e}")
+
+    except Exception as e:
+        st.warning(f"⚠️ AI summarization unavailable: {e}")
