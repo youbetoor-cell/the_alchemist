@@ -150,38 +150,32 @@ if summary_path.exists():
     except Exception as e:
         st.warning(f"⚠️ Crypto chart unavailable: {e}")
 
-    # --- AI Sentiment Summaries ---
-    st.markdown("### 🧠 AI Domain Insights")
-    try:
-        import openai
-        openai.api_key = os.getenv("OPENAI_API_KEY", "")
-        if openai.api_key:
-            for i, row in df_sorted.iterrows():
-                prompt = f"Give a concise market sentiment for {row['name']} based on: {row['summary']}"
-                completion = openai.ChatCompletion.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": "You are The Alchemist AI, a financial sentiment analyst."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    max_tokens=50
-                )
-                ai_summary = completion.choices[0].message.content.strip()
-                st.markdown(
-                    f"<div class='card'><b>{row['name'].capitalize()}</b><br>"
-                    f"<span style='color:#00e6b8;'>{ai_summary}</span></div>",
-                    unsafe_allow_html=True
-                )
-        else:
-            st.warning("⚠️ AI summaries disabled (no OpenAI API key).")
-    except Exception as e:
-        st.warning(f"⚠️ AI summarization unavailable: {e}")
+# --- AI Sentiment Summaries (New SDK Compatible) ---
+st.markdown("### 🧠 AI Domain Insights")
 
-else:
-    st.warning("No summary file found — run `python main.py` to generate reports.")
+try:
+    from openai import OpenAI
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
 
-st.markdown("<hr/>", unsafe_allow_html=True)
-st.markdown(
-    "<p style='text-align:center;color:#d4af37;'>⚗️ The Alchemist — elegant intelligence, live and aware ✨</p>",
-    unsafe_allow_html=True,
-)
+    if client.api_key:
+        for _, row in df_sorted.iterrows():
+            prompt = f"Provide a concise market sentiment summary for {row['name']} based on this data: {row['summary']}"
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are The Alchemist AI, a concise financial sentiment analyst."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=60
+            )
+            ai_summary = response.choices[0].message.content.strip()
+
+            st.markdown(
+                f"<div class='card'><b>{row['name'].capitalize()}</b><br>"
+                f"<span style='color:#00e6b8;'>{ai_summary}</span></div>",
+                unsafe_allow_html=True
+            )
+    else:
+        st.warning("⚠️ AI summaries disabled — missing `OPENAI_API_KEY`.")
+except Exception as e:
+    st.warning(f"⚠️ AI summarization unavailable: {e}")
