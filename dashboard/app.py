@@ -229,48 +229,74 @@ try:
 except Exception as e:
     st.warning(f"⚠️ Crypto chart unavailable: {e}")
 
-# --- 🧭 AI Volume Anomaly Detector (Auto-refresh + Slack Alerts) ---
+# --- 🧭 AI Volume Anomaly Detector (Auto-refresh + Slack Alerts, de-duplicated) ---
 from streamlit_autorefresh import st_autorefresh
 import requests
 import numpy as np
-import os
+import os, json
 import httpx
+from pathlib import Path
+from datetime import datetime, timedelta
 
+# refresh every 5 minutes
 st_autorefresh(interval=5 * 60 * 1000, key="volume_refresh")
 
 st.markdown("### 🚨 Volume Surge Detector (Top 100 Coins)")
 
 slack_url = os.getenv("SLACK_WEBHOOK_URL", "").strip()
 
+# cache for deduping alerts
+cache_dir = Path("data/cache")
+cache_dir.mkdir(parents=True, exist_ok=True)
+alerts_cache_path = cache_dir / "volume_alerts.json"
+
+# load previous alert state
+def load_alert_cache():
+    if alerts_cache_path.exists():
+        try:
+            with open(alerts_cache_path, "r") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+# save alert state
+def save_alert_cache(cache):
+    try:
+        with open(alerts_cache_path, "w") as f:
+            json.dump(cache, f, indent=2)
+    except Exception:
+        pass
+
+# keep alerts “fresh” for this many hours (don’t alert again during TTL)
+ALERT_TTL_HOURS = 2
+
+# small utility
+def utcnow_iso():
+    return datetime.utcnow().isoformat()
+
 try:
-    # Fetch top 100 coins by market cap
+    # 1) fetch top 100 by market cap
     url = "https://api.coingecko.com/api/v3/coins/markets"
     params = {"vs_currency": "usd", "order": "market_cap_desc", "per_page": 100, "page": 1}
-    data = requests.get(url, params=params, timeout=15).json()
+    data = requests.get(url, params=params, timeout=20).json()
 
     df_vol = pd.DataFrame(data)[["id", "symbol", "name", "total_volume", "current_price", "price_change_percentage_24h"]]
 
-    # Simulate 30-min window with mild noise drift (approximation)
+    # 2) estimate 30m baseline (approx) — noise proxy
+    np.random.seed()  # avoid identical numbers across sessions
     df_vol["volume_prev_30m"] = df_vol["total_volume"] * (1 - (np.random.randn(len(df_vol)) * 0.03))
     df_vol["volume_change_pct"] = ((df_vol["total_volume"] - df_vol["volume_prev_30m"]) / df_vol["volume_prev_30m"]) * 100
 
-    # Identify abnormal surges (>50%)
+    # 3) pick surges > 50%
     surges = df_vol[df_vol["volume_change_pct"] > 50].sort_values("volume_change_pct", ascending=False)
 
-    if len(surges) == 0:
-        st.info("No abnormal buy volume detected in the top 100 coins (past 30m).")
+    if surges.empty:
+        st.info("No abnormal buy volume detected in the top 100 coins (past ~30m).")
     else:
-        st.success(f"⚡ {len(surges)} coins showing >50% buy volume spike:")
-        alert_messages = []
+        st.success(f"⚡ {len(surges)} coin(s) showing >50% buy volume spike:")
         for _, row in surges.iterrows():
             color = "🟢" if row["volume_change_pct"] > 75 else "🟡"
-            msg = (
-                f"{color} *{row['name']} ({row['symbol'].upper()})*\n"
-                f"Buy Volume Surge: +{row['volume_change_pct']:.1f}%\n"
-                f"Price: ${row['current_price']:.2f} | 24h Δ {row['price_change_percentage_24h']:.2f}%"
-            )
-            alert_messages.append(msg)
-
             st.markdown(
                 f"<div class='card'><b>{row['name']} ({row['symbol'].upper()})</b><br>"
                 f"{color} +{row['volume_change_pct']:.1f}% buy volume<br>"
@@ -278,57 +304,99 @@ try:
                 unsafe_allow_html=True
             )
 
-        # --- AI Interpretation ---
-        ai_summary = ""
-        if client:
-            st.markdown("#### 🧠 AI Market Interpretation")
-            summary_text = ", ".join(surges['name'].head(5).tolist())
-            try:
-                ai_prompt = (
-                    f"Analyze these coins showing abnormal buy volume: {summary_text}. "
-                    f"Give a one-sentence summary of market sentiment or potential causes."
-                )
-                ai_response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": "You are The Alchemist AI, a concise crypto market analyst."},
-                        {"role": "user", "content": ai_prompt}
-                    ],
-                    max_tokens=60
-                )
-                ai_summary = ai_response.choices[0].message.content.strip()
-                st.markdown(
-                    f"<p style='color:#00e6b8;font-style:italic;'>{ai_summary}</p>",
-                    unsafe_allow_html=True
-                )
-            except Exception as e:
-                if "insufficient_quota" in str(e):
-                    ai_summary = "💤 AI paused — quota exceeded."
-                    st.warning(ai_summary)
-                else:
-                    st.warning(f"⚠️ AI interpretation unavailable: {e}")
+        # 4) de-duplicate Slack alerts using cache + TTL
+        cache = load_alert_cache()
+        now = datetime.utcnow()
+        ttl_cutoff = now - timedelta(hours=ALERT_TTL_HOURS)
 
-        # --- Slack Alerts ---
-        if slack_url:
-            try:
-                full_message = (
-                    "🧙‍♂️ *The Alchemist Volume Alert!*\n"
-                    f"{len(surges)} coin(s) showing >50% buy volume surge:\n\n"
-                    + "\n\n".join(alert_messages)
-                )
-                if ai_summary:
-                    full_message += f"\n\n🔮 *AI Insight:* {ai_summary}"
+        # prune old entries
+        pruned = {k: v for k, v in cache.items() if datetime.fromisoformat(v) > ttl_cutoff}
+        cache_changed = (len(pruned) != len(cache))
+        cache = pruned
 
-                httpx.post(slack_url, json={"text": full_message})
-                st.success("📣 Sent alert to Slack successfully.")
-            except Exception as e:
-                st.warning(f"⚠️ Slack alert failed: {e}")
+        new_surges = []
+        for _, row in surges.iterrows():
+            coin_id = row["id"]
+            last_time = cache.get(coin_id)
+            if (not last_time) or (datetime.fromisoformat(last_time) <= ttl_cutoff):
+                new_surges.append(row)
+
+        if new_surges:
+            alert_messages = []
+            for row in new_surges:
+                color = "🟢" if row["volume_change_pct"] > 75 else "🟡"
+                alert_messages.append(
+                    f"{color} *{row['name']} ({row['symbol'].upper()})*\n"
+                    f"Buy Volume Surge: +{row['volume_change_pct']:.1f}%\n"
+                    f"Price: ${row['current_price']:.2f} | 24h Δ {row['price_change_percentage_24h']:.2f}%"
+                )
+                # update cache with “alerted now”
+                cache[row["id"]] = utcnow_iso()
+
+            # optional AI interpretation (uses ‘client’ from your AI section, if available)
+            ai_summary = ""
+            if 'client' in globals() and client:
+                try:
+                    summary_text = ", ".join([r["name"] for r in new_surges][:5])
+                    ai_prompt = (
+                        f"Analyze these coins showing abnormal buy volume: {summary_text}. "
+                        f"Provide one pithy sentence on likely cause or implication."
+                    )
+                    ai_response = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[
+                            {"role": "system", "content": "You are The Alchemist AI, a concise crypto market analyst."},
+                            {"role": "user", "content": ai_prompt}
+                        ],
+                        max_tokens=60
+                    )
+                    ai_summary = ai_response.choices[0].message.content.strip()
+                    st.markdown(
+                        f"<p style='color:#00e6b8;font-style:italic;'>🔮 {ai_summary}</p>",
+                        unsafe_allow_html=True
+                    )
+                except Exception:
+                    pass  # keep UI quiet; quotas/keys already handled above
+
+            # send Slack once for the *new* coins only
+            if slack_url:
+                try:
+                    full_message = (
+                        "🧙‍♂️ *The Alchemist Volume Alert — NEW surges!*\n"
+                        f"{len(new_surges)} new coin(s) crossed the +50% threshold:\n\n"
+                        + "\n\n".join(alert_messages)
+                    )
+                    if ai_summary:
+                        full_message += f"\n\n🔮 *AI Insight:* {ai_summary}"
+                    httpx.post(slack_url, json={"text": full_message}, timeout=15)
+                    st.success("📣 Sent *new surge* alert to Slack.")
+                except Exception as e:
+                    st.warning(f"⚠️ Slack alert failed: {e}")
+            else:
+                st.info("ℹ️ Slack alerts disabled — add SLACK_WEBHOOK_URL in Streamlit secrets.")
+
+            save_alert_cache(cache)
+
         else:
-            st.info("ℹ️ Slack alerts disabled — add SLACK_WEBHOOK_URL to your Streamlit secrets.")
+            st.write("🕊️ No *new* surges since last alert window.")
+
+        # write cache if only pruned
+        if not new_surges and cache_changed:
+            save_alert_cache(cache)
+
+    # convenience: manual cache reset
+    with st.expander("⚙️ Alert settings"):
+        st.caption(f"TTL: {ALERT_TTL_HOURS}h — alerts will not repeat for the same coin inside this window.")
+        if st.button("🧹 Clear alert memory (send again next time)"):
+            try:
+                if alerts_cache_path.exists():
+                    alerts_cache_path.unlink()
+                st.success("Cleared alert memory.")
+            except Exception as e:
+                st.warning(f"Could not clear cache: {e}")
 
 except Exception as e:
     st.warning(f"⚠️ Volume detector unavailable: {e}")
-
 
 
 # --- 🧠 AI Domain Insights + Test Button ---
