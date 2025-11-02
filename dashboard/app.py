@@ -5,9 +5,8 @@ import plotly.express as px
 from pathlib import Path
 import json
 from datetime import datetime
-import math
 
-# --- Page Config (must be first Streamlit call) ---
+# --- Page Config ---
 st.set_page_config(
     page_title="⚗️ The Alchemist Dashboard",
     page_icon="🧙‍♂️",
@@ -27,7 +26,7 @@ body {
 
 /* Title Glow */
 h1, h2, h3 {
-    color: #d4af37 !important; /* soft gold */
+    color: #d4af37 !important;
     text-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
 }
 
@@ -46,7 +45,7 @@ h1, h2, h3 {
     box-shadow: 0 0 18px rgba(0,255,255,0.6);
 }
 
-/* Card Container */
+/* Cards */
 .card {
     background: rgba(18,18,22,0.9);
     border: 1px solid rgba(160,160,160,0.3);
@@ -168,15 +167,6 @@ if summary_path.exists():
     )
     st.plotly_chart(fig, use_container_width=True)
 
-else:
-    st.warning("No data found — run `python main.py` to generate new reports.")
-
-st.markdown("<hr/>", unsafe_allow_html=True)
-st.markdown(
-    "<p style='text-align:center;color:#d4af37;'>🧠 The Alchemist AI — balanced elegance ✨</p>",
-    unsafe_allow_html=True,
-)
-
     # --- 7-Day Crypto Chart ---
     from pycoingecko import CoinGeckoAPI
     cg = CoinGeckoAPI()
@@ -207,14 +197,11 @@ st.markdown(
         st.warning(f"⚠️ Unable to fetch crypto chart: {e}")
 
     # --- AI Sentiment Summaries ---
-    import openai
-    import os
-
+    import openai, os
     openai.api_key = os.getenv("OPENAI_API_KEY", "sk-...")  # replace with your key or env var
 
     st.markdown("### 🧠 AI Domain Insights")
-
-    for i, row in df_sorted.iterrows():
+    for _, row in df_sorted.iterrows():
         prompt = f"Give a one-sentence market sentiment summary for this domain: {row['name']} — data: {row['summary']}"
         try:
             completion = openai.ChatCompletion.create(
@@ -233,3 +220,13 @@ st.markdown(
             f"<div class='card'><b>{row['name'].capitalize()}</b><br><span style='color:#00e6b8;'>{ai_summary}</span></div>",
             unsafe_allow_html=True
         )
+
+else:
+    st.warning("No data found — run `python main.py` to generate new reports.")
+
+st.markdown("<hr/>", unsafe_allow_html=True)
+st.markdown(
+    "<p style='text-align:center;color:#d4af37;'>🧠 The Alchemist AI — balanced elegance ✨</p>",
+    unsafe_allow_html=True,
+)
+
