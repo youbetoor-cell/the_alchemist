@@ -176,3 +176,60 @@ st.markdown(
     "<p style='text-align:center;color:#d4af37;'>🧠 The Alchemist AI — balanced elegance ✨</p>",
     unsafe_allow_html=True,
 )
+
+    # --- 7-Day Crypto Chart ---
+    from pycoingecko import CoinGeckoAPI
+    cg = CoinGeckoAPI()
+
+    try:
+        btc_data = cg.get_coin_market_chart_by_id(id='bitcoin', vs_currency='usd', days=7)
+        btc_prices = btc_data['prices']
+        btc_df = pd.DataFrame(btc_prices, columns=["timestamp", "price"])
+        btc_df["date"] = pd.to_datetime(btc_df["timestamp"], unit="ms")
+
+        st.markdown("### 💹 Bitcoin 7-Day Trend")
+        fig_btc = px.line(
+            btc_df,
+            x="date",
+            y="price",
+            title="Bitcoin Price (USD, 7 Days)",
+            markers=True,
+            line_shape="spline",
+        )
+        fig_btc.update_layout(
+            plot_bgcolor="#0a0a0f",
+            paper_bgcolor="#0a0a0f",
+            font=dict(color="#e0e0e0"),
+            title_font=dict(color="#00e6b8", size=20),
+        )
+        st.plotly_chart(fig_btc, use_container_width=True)
+    except Exception as e:
+        st.warning(f"⚠️ Unable to fetch crypto chart: {e}")
+
+    # --- AI Sentiment Summaries ---
+    import openai
+    import os
+
+    openai.api_key = os.getenv("OPENAI_API_KEY", "sk-...")  # replace with your key or env var
+
+    st.markdown("### 🧠 AI Domain Insights")
+
+    for i, row in df_sorted.iterrows():
+        prompt = f"Give a one-sentence market sentiment summary for this domain: {row['name']} — data: {row['summary']}"
+        try:
+            completion = openai.ChatCompletion.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are The Alchemist AI, a concise financial sentiment analyst."},
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=50,
+            )
+            ai_summary = completion.choices[0].message.content.strip()
+        except Exception:
+            ai_summary = "⚠️ Unable to fetch AI summary (no API key set)."
+
+        st.markdown(
+            f"<div class='card'><b>{row['name'].capitalize()}</b><br><span style='color:#00e6b8;'>{ai_summary}</span></div>",
+            unsafe_allow_html=True
+        )
