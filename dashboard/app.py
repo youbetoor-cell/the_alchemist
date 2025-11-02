@@ -190,9 +190,9 @@ client = None
 
 try:
     if api_key:
-        # ✅ Proxy-safe client (Streamlit Cloud compatible)
+        # Proxy-safe client for Streamlit Cloud
         client = OpenAI(api_key=api_key, http_client=httpx.Client(verify=True))
-        _ = client.models.list()  # Test connection
+        _ = client.models.list()  # test connection
         st.success("✅ AI connection established successfully.")
     else:
         st.warning("⚠️ AI summaries disabled — missing API key.")
@@ -213,8 +213,15 @@ if client:
                 max_tokens=60
             )
             ai_summary = response.choices[0].message.content.strip()
+
         except Exception as e:
-            ai_summary = f"⚠️ Unable to fetch summary: {e}"
+            # Graceful fallback for API quota issues
+            if "insufficient_quota" in str(e):
+                ai_summary = "💤 AI paused — quota exceeded."
+            elif "authentication_error" in str(e).lower():
+                ai_summary = "⚠️ Invalid or expired API key."
+            else:
+                ai_summary = "⚠️ AI summary temporarily unavailable."
 
         st.markdown(
             f"<div class='card'><b>{row['name'].capitalize()}</b><br>"
