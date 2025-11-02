@@ -13,62 +13,67 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: 🧩 Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: 🐍 Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: 📣 Notify Slack on update
-        if: success()
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: |
-          MESSAGE="🧙‍♂️ The Alchemist has updated the data! \
-          \nTop performer: $(jq -r '.details | max_by(.score) | .name' data/summary.json) \
-          \nScore: $(jq -r '.details | max_by(.score) | .score' data/summary.json)"
-          echo "$MESSAGE"
-          curl -X POST -H 'Content-type: application/json' \
-            --data "{\"text\":\"$MESSAGE\"}" \
-            $SLACK_WEBHOOK_URL
 
-      - name: 📣 Notify Slack on update
-        if: success()
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: |
-          MESSAGE="🧙‍♂️ The Alchemist has updated the data! \
-          \nTop performer: $(jq -r '.details | max_by(.score) | .name' data/summary.json) \
-          \nScore: $(jq -r '.details | max_by(.score) | .score' data/summary.json)"
-          echo "$MESSAGE"
-          curl -X POST -H 'Content-type: application/json' \
-            --data "{\"text\":\"$MESSAGE\"}" \
-            $SLACK_WEBHOOK_URL
-
-      - name: Install dependencies
+      - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install jq
 
-      - name: Run The Alchemist agents
+      - name: 🧙 Run The Alchemist agents
         run: python main.py
 
-      - name: Commit & push updates
+      - name: 💾 Commit & push updates
         run: |
           git config user.name "The Alchemist Bot"
           git config user.email "bot@thealchemist.ai"
           git add data/summary.json data/reports/*.json || true
           git commit -m "Auto-update $(date -u +'%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
-          git push
+          git push || echo "No push changes"
 
-      - name: Send Slack notification
+      - name: 📣 Notify Slack with AI summary
         if: success()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
+          echo "🔮 Preparing Slack summary..."
+          TOP_DOMAIN=$(jq -r '.details | max_by(.score) | .name' data/summary.json)
+          TOP_SCORE=$(jq -r '.details | max_by(.score) | .score' data/summary.json)
+          SUMMARY=$(jq -r ".details[] | select(.name==\"$TOP_DOMAIN\") | .summary" data/summary.json)
+
+          # Fetch AI sentiment (via OpenAI API)
+          SENTIMENT=$(curl https://api.openai.com/v1/chat/completions \
+            -s \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $OPENAI_API_KEY" \
+            -d "{
+              \"model\": \"gpt-4o-mini\",
+              \"messages\": [
+                {\"role\": \"system\", \"content\": \"You are The Alchemist AI. Reply with one word sentiment (🟢 bullish / 🔴 bearish / ⚪ neutral) and 4-6 words of explanation.\"},
+                {\"role\": \"user\", \"content\": \"Analyze domain $TOP_DOMAIN with summary: $SUMMARY\"}
+              ],
+              \"max_tokens\": 25
+            }" | jq -r '.choices[0].message.content')
+
+          # Compose Slack message
+          MESSAGE="🧙‍♂️ *The Alchemist has forged new insights!*
+          \n🏆 *Top Performer:* ${TOP_DOMAIN^} (score $TOP_SCORE)
+          \n🔮 *AI Sentiment:* $SENTIMENT
+          \n📊 *Next update:* in 1 hour"
+
+          # Send Slack message
           if [ -n "$SLACK_WEBHOOK_URL" ]; then
             curl -X POST -H 'Content-type: application/json' \
-            --data "{\"text\":\"✅ *The Alchemist* auto-update complete at $(date -u +'%Y-%m-%d %H:%M:%S') UTC\"}" \
-            "$SLACK_WEBHOOK_URL"
+              --data "{\"text\":\"$MESSAGE\"}" \
+              "$SLACK_WEBHOOK_URL"
+          else
+            echo "⚠️ No Slack webhook found, skipping notification."
           fi
