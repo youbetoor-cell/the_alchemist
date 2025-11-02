@@ -7,52 +7,33 @@ import json
 from datetime import datetime
 import math
 
-# --- Page Config ---
+# --- Page Config (must be first Streamlit call) ---
 st.set_page_config(
-    page_title="🧙‍♂️ The Alchemist Dashboard",
-    page_icon="⚗️",
+    page_title="⚗️ The Alchemist Dashboard",
+    page_icon="🧙‍♂️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
-# --- Dark-Gold-Cyan Theme with Intro Animation ---
+# --- CSS: Futuristic Gold–Cyan–Silver theme ---
 st.markdown("""
 <style>
 body {
-    background: radial-gradient(circle at 20% 30%, #0a0a0f, #000);
+    background: radial-gradient(circle at 20% 30%, #050505, #0a0a0f);
     color: #e0e0e0;
     font-family: 'Inter', sans-serif;
     overflow-x: hidden;
-    position: relative;
 }
 
-/* --- Intro Shimmer Animation --- */
-body::before {
-    content: "";
-    position: fixed;
-    top: 0; left: -50%;
-    width: 200%;
-    height: 100%;
-    background: linear-gradient(120deg, rgba(255,215,0,0.1) 0%, rgba(255,255,255,0.2) 30%, rgba(0,255,230,0.1) 60%);
-    transform: skewX(-20deg);
-    animation: shimmer 3s ease-in-out 1;
-    z-index: 999;
-}
-@keyframes shimmer {
-    0% { left: -60%; opacity: 0.2; }
-    50% { left: 0%; opacity: 0.6; }
-    100% { left: 60%; opacity: 0; }
-}
-
-/* Headings */
+/* Title Glow */
 h1, h2, h3 {
-    color: #f7e28f !important;
-    text-shadow: 0 0 18px rgba(255, 215, 0, 0.4);
+    color: #d4af37 !important; /* soft gold */
+    text-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
 }
 
 /* Buttons */
 .stButton>button {
-    background: linear-gradient(90deg, #b8860b, #00b3b3);
+    background: linear-gradient(90deg, #b8860b, #00e6b8);
     color: #fff;
     border: none;
     border-radius: 10px;
@@ -61,63 +42,38 @@ h1, h2, h3 {
     box-shadow: 0 0 10px rgba(255,215,0,0.4);
 }
 .stButton>button:hover {
-    background: linear-gradient(90deg, #ffd700, #00e6b8);
-    box-shadow: 0 0 18px rgba(255,215,0,0.6);
+    background: linear-gradient(90deg, #ffd700, #00ffff);
+    box-shadow: 0 0 18px rgba(0,255,255,0.6);
 }
 
-/* Cards */
+/* Card Container */
 .card {
     background: rgba(18,18,22,0.9);
-    border: 1px solid rgba(180,180,180,0.2);
+    border: 1px solid rgba(160,160,160,0.3);
     border-radius: 15px;
     padding: 1.3rem;
     margin-bottom: 1rem;
-    box-shadow: 0 0 20px rgba(255,215,0,0.05);
+    box-shadow: 0 0 20px rgba(200,200,200,0.05);
     transition: all 0.4s ease;
     text-align: center;
-    animation: softPulse 6s ease-in-out infinite;
 }
 .card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 0 25px rgba(255,215,0,0.25);
+    transform: translateY(-4px);
+    box-shadow: 0 0 30px rgba(0,255,230,0.4);
 }
 
-/* Pulse glow */
-@keyframes softPulse {
-  0% { box-shadow: 0 0 15px rgba(255,215,0,0.08); }
-  50% { box-shadow: 0 0 25px rgba(0,255,230,0.25); }
-  100% { box-shadow: 0 0 15px rgba(255,215,0,0.08); }
-}
-
-/* Highlight (Top Performer) */
+/* Highlighted top performer */
 .highlight {
     border: 1px solid #ffd700;
-    box-shadow: 0 0 35px rgba(255, 215, 0, 0.5);
-    animation: pulseGold 4s ease-in-out infinite;
+    box-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
+    animation: goldPulse 5s ease-in-out infinite;
 }
-@keyframes pulseGold {
-  0% { box-shadow: 0 0 30px rgba(255,215,0,0.3); }
-  50% { box-shadow: 0 0 45px rgba(255,215,0,0.6); }
-  100% { box-shadow: 0 0 30px rgba(255,215,0,0.3); }
-}
-
-/* Circular Rings */
-svg { transform: rotate(-90deg); }
-circle.bg { stroke: rgba(255, 255, 255, 0.08); stroke-width: 8; }
-circle.fg {
-    stroke: url(#alchemyGradient);
-    stroke-width: 8;
-    stroke-linecap: round;
-    filter: drop-shadow(0 0 6px #ffd700);
-    transition: stroke-dashoffset 1s ease-in-out;
-    animation: glowPulse 5s ease-in-out infinite;
-}
-@keyframes glowPulse {
-  0%, 100% { filter: drop-shadow(0 0 6px #ffd700); }
-  50% { filter: drop-shadow(0 0 12px #00e6b8); }
+@keyframes goldPulse {
+  0%,100% { box-shadow: 0 0 25px rgba(255,215,0,0.4); }
+  50% { box-shadow: 0 0 40px rgba(0,255,230,0.5); }
 }
 
-/* Particles */
+/* Particle backdrop */
 #particles {
   position: fixed;
   top: 0; left: 0;
@@ -128,20 +84,20 @@ circle.fg {
 .particle {
   position: absolute;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,215,0,0.7), rgba(255,215,0,0.1));
-  animation: floatGold 20s infinite ease-in-out;
+  background: radial-gradient(circle, rgba(255,215,0,0.4), rgba(255,215,0,0.1));
+  animation: floatGold 16s infinite ease-in-out;
 }
 .particle.cyan {
   background: radial-gradient(circle, rgba(0,255,230,0.5), rgba(0,255,230,0.1));
-  animation: floatCyan 24s infinite ease-in-out;
+  animation: floatCyan 22s infinite ease-in-out;
 }
 @keyframes floatGold {
-  0%,100% { transform: translateY(0px) translateX(0px); opacity: 0.7; }
-  50% { transform: translateY(-40px) translateX(30px); opacity: 0.3; }
+  0%,100% { transform: translateY(0px); opacity: 0.8; }
+  50% { transform: translateY(-35px); opacity: 0.4; }
 }
 @keyframes floatCyan {
-  0%,100% { transform: translateY(0px) translateX(0px); opacity: 0.6; }
-  50% { transform: translateY(30px) translateX(-25px); opacity: 0.2; }
+  0%,100% { transform: translateY(0px); opacity: 0.7; }
+  50% { transform: translateY(25px); opacity: 0.3; }
 }
 </style>
 
@@ -150,30 +106,17 @@ circle.fg {
   <div class="particle cyan" style="width:8px; height:8px; top:50%; left:70%;"></div>
   <div class="particle" style="width:10px; height:10px; top:80%; left:20%;"></div>
   <div class="particle cyan" style="width:5px; height:5px; top:30%; left:80%;"></div>
-  <div class="particle" style="width:7px; height:7px; top:65%; left:40%;"></div>
 </div>
 """, unsafe_allow_html=True)
 
-# --- Gradient ---
-st.markdown("""
-<svg width="0" height="0">
-  <defs>
-    <linearGradient id="alchemyGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#ffd700"/>
-      <stop offset="100%" stop-color="#00e6b8"/>
-    </linearGradient>
-  </defs>
-</svg>
-""", unsafe_allow_html=True)
-
-# --- Auto-refresh ---
+# --- Auto-refresh every 10 min ---
 st_autorefresh(interval=10 * 60 * 1000, key="refresh")
 
 # --- Header ---
 st.title("⚗️ The Alchemist Intelligence Dashboard")
-st.markdown("### The fusion of gold, data, and light ⚡")
+st.caption("Fused in gold, silver, and light — rebalanced design ✨")
 
-# --- Load summary ---
+# --- Load summary data ---
 summary_path = Path("data/summary.json")
 if summary_path.exists():
     with open(summary_path, "r") as f:
@@ -189,65 +132,47 @@ if summary_path.exists():
 
     st.markdown(f"🏆 **Top Performer:** `{top_name.capitalize()}` — **{top_score:.3f}**")
 
-    # --- Cards + Rings ---
+    # --- Horizontal domain cards ---
     st.markdown("### 🧩 Domain Performance Overview")
-    cols = st.columns(3)
+    cols = st.columns(len(df_sorted))
     for i, row in df_sorted.iterrows():
         style = "card"
         if row["name"] == top_name:
             style += " highlight"
 
-        with cols[i % 3]:
+        with cols[i]:
             st.markdown(f"<div class='{style}'><h3>{row['name'].capitalize()}</h3>", unsafe_allow_html=True)
-            radius = 45
-            circumference = 2 * math.pi * radius
-            progress = row["score"]
-            offset = circumference * (1 - progress)
-            st.markdown(f"""
-            <div style="display:flex;justify-content:center;">
-                <svg width="120" height="120">
-                    <circle class="bg" cx="60" cy="60" r="{radius}" fill="none" />
-                    <circle class="fg" cx="60" cy="60" r="{radius}" fill="none"
-                        stroke-dasharray="{circumference}" stroke-dashoffset="{offset}">
-                    </circle>
-                </svg>
-            </div>
-            <h2 style='color:#f7e28f;margin-top:-10px;'>Score: {row['score']:.3f}</h2>
-            """, unsafe_allow_html=True)
-            st.markdown(f"<p style='font-size:0.9em;color:#bfbfbf;'>{row['summary'][:120]}...</p></div>", unsafe_allow_html=True)
+            st.markdown(f"<h2 style='color:#f7e28f;'>Score: {row['score']:.3f}</h2>", unsafe_allow_html=True)
+            st.markdown(f"<p style='font-size:0.9em;color:#bfbfbf;'>{row['summary'][:100]}...</p></div>", unsafe_allow_html=True)
 
-    # --- Horizontal Domain Scores Overview Chart ---
+    # --- Bar chart overview ---
     st.markdown("### 📊 Domain Scores Overview")
     fig = px.bar(
         df_sorted,
         y="name",
         x="score",
         orientation="h",
-        text_auto=".3f",
         color="score",
-        color_continuous_scale=["#b8860b", "#ffd700", "#00e6b8"],
+        color_continuous_scale=["#b8860b", "#d4af37", "#00e6b8"],
+        text_auto=".3f",
         title="Performance Across Domains",
     )
-    fig.update_traces(
-        textposition="outside",
-        marker_line_width=1.2,
-        marker_line_color="#202020",
-    )
+    fig.update_traces(textposition="outside", marker_line_color="#202020", marker_line_width=1.2)
     fig.update_layout(
         plot_bgcolor="#0a0a0f",
         paper_bgcolor="#0a0a0f",
         font=dict(color="#e0e0e0"),
         title_font=dict(color="#f7e28f", size=22),
-        yaxis=dict(title="", tickfont=dict(size=14)),
+        yaxis=dict(title="", tickfont=dict(size=13)),
         xaxis=dict(gridcolor="#1e1e1e"),
     )
     st.plotly_chart(fig, use_container_width=True)
-else:
-    st.warning("No data found — run `python main.py` to generate reports.")
 
-# --- Footer ---
+else:
+    st.warning("No data found — run `python main.py` to generate new reports.")
+
 st.markdown("<hr/>", unsafe_allow_html=True)
 st.markdown(
-    "<p style='text-align:center;color:#f7e28f;'>🧠 The Alchemist AI — elegance in motion ✨</p>",
+    "<p style='text-align:center;color:#d4af37;'>🧠 The Alchemist AI — balanced elegance ✨</p>",
     unsafe_allow_html=True,
 )
