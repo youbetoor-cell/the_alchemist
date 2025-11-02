@@ -38,16 +38,20 @@ jobs:
           git commit -m "Auto-update $(date -u +'%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
           git push || echo "No push changes"
 
-      - name: 📣 Notify Slack with AI summary
+      - name: 📣 Notify Slack
         if: success()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          echo "🔮 Preparing Slack summary..."
-          TOP_DOMAIN=$(jq -r '.details | max_by(.score) | .name' data/summary.json)
-          TOP_SCORE=$(jq -r '.details | max_by(.score) | .score' data/summary.json)
-          SUMMARY=$(jq -r ".details[] | select(.name==\"$TOP_DOMAIN\") | .summary" data/summary.json)
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            TOP=$(jq -r '.details | max_by(.score) | .name' data/summary.json)
+            SCORE=$(jq -r '.details | max_by(.score) | .score' data/summary.json)
+            MESSAGE="🧙‍♂️ *The Alchemist Update Complete!* \
+            \nTop Performer: *$TOP* — Score: *$SCORE* \
+            \nTime: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+            curl -X POST -H 'Content-type: application/json' \
+              --data "{\"text\":\"$MESSAGE\"}" "$SLACK_WEBHOOK_URL"
+          fi
 
           # Fetch AI sentiment (via OpenAI API)
           SENTIMENT=$(curl https://api.openai.com/v1/chat/completions \
