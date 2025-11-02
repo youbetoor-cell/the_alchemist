@@ -5,6 +5,7 @@ import plotly.express as px
 from pathlib import Path
 import json
 from datetime import datetime
+import time
 
 # --- Page Setup ---
 st.set_page_config(
@@ -14,49 +15,28 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# --- Futuristic CSS Theme ---
+# --- Futuristic CSS ---
 st.markdown("""
 <style>
-body {
-    background-color: #0d1117;
-    color: #c9d1d9;
-}
-h1, h2, h3 {
-    color: #00ffc8 !important;
-    text-shadow: 0 0 15px #00ffc8;
-}
-div[data-testid="stMetricValue"] {
-    color: #58a6ff;
-}
-.stButton>button {
-    color: white;
-    background: linear-gradient(90deg, #1f6feb, #00ffc8);
-    border: none;
-    border-radius: 10px;
-    padding: 0.6em 1.2em;
-    font-weight: bold;
-}
-.stButton>button:hover {
-    background: linear-gradient(90deg, #00ffc8, #1f6feb);
-}
-div.block-container {
-    padding-top: 1.5rem;
-}
+body { background-color: #0d1117; color: #c9d1d9; }
+h1, h2, h3 { color: #00ffc8 !important; text-shadow: 0 0 15px #00ffc8; }
+div[data-testid="stMetricValue"] { color: #58a6ff; }
 .card {
-    background: rgba(18, 18, 18, 0.85);
-    border: 1px solid rgba(0, 255, 200, 0.2);
+    background: rgba(18,18,18,0.9);
+    border: 1px solid rgba(0,255,200,0.2);
     border-radius: 15px;
-    padding: 1.2rem;
-    box-shadow: 0 0 20px rgba(0, 255, 200, 0.15);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 0 20px rgba(0,255,200,0.15);
     transition: 0.3s;
 }
 .card:hover {
-    box-shadow: 0 0 35px rgba(0, 255, 200, 0.35);
+    box-shadow: 0 0 35px rgba(0,255,200,0.35);
     transform: translateY(-3px);
 }
 .highlight {
-    border: 1px solid rgba(255, 215, 0, 0.5);
-    box-shadow: 0 0 35px rgba(255, 215, 0, 0.4);
+    border: 1px solid rgba(255,215,0,0.5);
+    box-shadow: 0 0 35px rgba(255,215,0,0.4);
 }
 </style>
 """, unsafe_allow_html=True)
@@ -68,7 +48,7 @@ st_autorefresh(interval=10 * 60 * 1000, key="datarefresh")
 st.title("🧙‍♂️ The Alchemist: Intelligence Dashboard")
 st.markdown("### A live fusion of markets, music, and data — reimagined for 2025 ⚡")
 
-# --- Load Summary ---
+# --- Load Data ---
 summary_path = Path("data/summary.json")
 if summary_path.exists():
     with open(summary_path, "r") as f:
@@ -78,13 +58,9 @@ if summary_path.exists():
 
     df = pd.DataFrame(data.get("details", []))
     df_sorted = df.sort_values("score", ascending=False).reset_index(drop=True)
-
     top_name = df_sorted.iloc[0]["name"]
-    top_score = df_sorted.iloc[0]["score"]
 
-    st.markdown(f"🔥 **Top Performer:** `{top_name.capitalize()}` with score **{top_score:.3f}**")
-
-    # --- Cards Layout ---
+    # --- Animated counters per domain ---
     st.markdown("### ⚡ Domain Intelligence Overview")
     cols = st.columns(3)
 
@@ -93,14 +69,16 @@ if summary_path.exists():
         if row["name"] == top_name:
             card_style += " highlight"
 
+        # Animated metric counter
+        placeholder = cols[i % 3].empty()
         with cols[i % 3]:
-            st.markdown(f"""
-            <div class="{card_style}">
-                <h3>🔹 {row['name'].capitalize()}</h3>
-                <p><b>Score:</b> {row['score']:.3f}</p>
-                <p style='font-size:0.9em;color:#9be9a8'>{row['summary'][:120]}...</p>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"<div class='{card_style}'><h3>🔹 {row['name'].capitalize()}</h3>", unsafe_allow_html=True)
+            score_placeholder = st.empty()
+            for s in range(0, int(row['score'] * 1000), 50):
+                score_placeholder.markdown(f"<h2 style='color:#00ffc8;'>Score: {s/1000:.3f}</h2>", unsafe_allow_html=True)
+                time.sleep(0.01)
+            score_placeholder.markdown(f"<h2 style='color:#00ffc8;'>Score: {row['score']:.3f}</h2>", unsafe_allow_html=True)
+            st.markdown(f"<p style='font-size:0.9em;color:#9be9a8'>{row['summary'][:120]}...</p></div>", unsafe_allow_html=True)
 
     # --- Chart ---
     st.markdown("### 📊 Performance Comparison")
