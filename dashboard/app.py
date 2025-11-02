@@ -5,6 +5,7 @@ import plotly.express as px
 from pathlib import Path
 import json
 from datetime import datetime
+import os
 
 # --- Page Config ---
 st.set_page_config(
@@ -14,23 +15,18 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# --- CSS: Futuristic Gold–Cyan–Silver theme ---
+# --- Futuristic Gold–Cyan–Silver Theme ---
 st.markdown("""
 <style>
 body {
     background: radial-gradient(circle at 20% 30%, #050505, #0a0a0f);
     color: #e0e0e0;
     font-family: 'Inter', sans-serif;
-    overflow-x: hidden;
 }
-
-/* Title Glow */
 h1, h2, h3 {
     color: #d4af37 !important;
     text-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
 }
-
-/* Buttons */
 .stButton>button {
     background: linear-gradient(90deg, #b8860b, #00e6b8);
     color: #fff;
@@ -44,79 +40,38 @@ h1, h2, h3 {
     background: linear-gradient(90deg, #ffd700, #00ffff);
     box-shadow: 0 0 18px rgba(0,255,255,0.6);
 }
-
-/* Cards */
 .card {
-    background: rgba(18,18,22,0.9);
-    border: 1px solid rgba(160,160,160,0.3);
+    background: rgba(18,18,22,0.85);
+    border: 1px solid rgba(160,160,160,0.25);
     border-radius: 15px;
-    padding: 1.3rem;
-    margin-bottom: 1rem;
-    box-shadow: 0 0 20px rgba(200,200,200,0.05);
-    transition: all 0.4s ease;
+    padding: 1.2rem;
+    margin: 0.5rem;
     text-align: center;
+    box-shadow: 0 0 25px rgba(255,215,0,0.05);
+    transition: all 0.3s ease;
 }
 .card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 0 30px rgba(0,255,230,0.4);
+    transform: translateY(-3px);
+    box-shadow: 0 0 25px rgba(0,255,230,0.3);
 }
-
-/* Highlighted top performer */
 .highlight {
     border: 1px solid #ffd700;
-    box-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
-    animation: goldPulse 5s ease-in-out infinite;
+    box-shadow: 0 0 30px rgba(255,215,0,0.5);
 }
-@keyframes goldPulse {
-  0%,100% { box-shadow: 0 0 25px rgba(255,215,0,0.4); }
-  50% { box-shadow: 0 0 40px rgba(0,255,230,0.5); }
-}
-
-/* Particle backdrop */
-#particles {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100vw; height: 100vh;
-  z-index: -1;
-  overflow: hidden;
-}
-.particle {
-  position: absolute;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,215,0,0.4), rgba(255,215,0,0.1));
-  animation: floatGold 16s infinite ease-in-out;
-}
-.particle.cyan {
-  background: radial-gradient(circle, rgba(0,255,230,0.5), rgba(0,255,230,0.1));
-  animation: floatCyan 22s infinite ease-in-out;
-}
-@keyframes floatGold {
-  0%,100% { transform: translateY(0px); opacity: 0.8; }
-  50% { transform: translateY(-35px); opacity: 0.4; }
-}
-@keyframes floatCyan {
-  0%,100% { transform: translateY(0px); opacity: 0.7; }
-  50% { transform: translateY(25px); opacity: 0.3; }
+@media (max-width: 900px) {
+    .stColumn { width: 100% !important; display: block; }
 }
 </style>
-
-<div id="particles">
-  <div class="particle" style="width:6px; height:6px; top:20%; left:30%;"></div>
-  <div class="particle cyan" style="width:8px; height:8px; top:50%; left:70%;"></div>
-  <div class="particle" style="width:10px; height:10px; top:80%; left:20%;"></div>
-  <div class="particle cyan" style="width:5px; height:5px; top:30%; left:80%;"></div>
-</div>
 """, unsafe_allow_html=True)
 
-# --- Auto-refresh every 10 min ---
+# --- Auto-refresh every 10 minutes ---
 st_autorefresh(interval=10 * 60 * 1000, key="refresh")
 
-# --- Header ---
 st.title("⚗️ The Alchemist Intelligence Dashboard")
-st.caption("Fused in gold, silver, and light — rebalanced design ✨")
+st.caption("Gold, silver & light — now with sentiment and flow ✨")
 
-# --- Load summary data ---
 summary_path = Path("data/summary.json")
+
 if summary_path.exists():
     with open(summary_path, "r") as f:
         data = json.load(f)
@@ -144,17 +99,16 @@ if summary_path.exists():
             st.markdown(f"<h2 style='color:#f7e28f;'>Score: {row['score']:.3f}</h2>", unsafe_allow_html=True)
             st.markdown(f"<p style='font-size:0.9em;color:#bfbfbf;'>{row['summary'][:100]}...</p></div>", unsafe_allow_html=True)
 
-    # --- Bar chart overview ---
+    # --- Bar chart (horizontal layout) ---
     st.markdown("### 📊 Domain Scores Overview")
     fig = px.bar(
         df_sorted,
-        y="name",
-        x="score",
+        y="name", x="score",
         orientation="h",
         color="score",
         color_continuous_scale=["#b8860b", "#d4af37", "#00e6b8"],
         text_auto=".3f",
-        title="Performance Across Domains",
+        title="Performance Across Domains"
     )
     fig.update_traces(textposition="outside", marker_line_color="#202020", marker_line_width=1.2)
     fig.update_layout(
@@ -167,70 +121,67 @@ if summary_path.exists():
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # --- 7-Day Crypto Chart (with safe fallback) ---
-    st.markdown("### 💹 Bitcoin 7-Day Trend")
-
+    # --- 7-Day Bitcoin Chart (safe version) ---
     try:
-        from pycoingecko import CoinGeckoAPI
-        cg = CoinGeckoAPI()
-        btc_data = cg.get_coin_market_chart_by_id(id='bitcoin', vs_currency='usd', days=7)
-        btc_prices = btc_data['prices']
-        btc_df = pd.DataFrame(btc_prices, columns=["timestamp", "price"])
-        btc_df["date"] = pd.to_datetime(btc_df["timestamp"], unit="ms")
+        import requests
+        url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart"
+        params = {"vs_currency": "usd", "days": "7"}
+        r = requests.get(url, params=params, timeout=10)
+        if r.status_code == 200:
+            btc_data = r.json()
+            btc_prices = btc_data["prices"]
+            btc_df = pd.DataFrame(btc_prices, columns=["timestamp", "price"])
+            btc_df["date"] = pd.to_datetime(btc_df["timestamp"], unit="ms")
 
-        fig_btc = px.line(
-            btc_df,
-            x="date",
-            y="price",
-            title="Bitcoin Price (USD, 7 Days)",
-            markers=True,
-            line_shape="spline",
-        )
-        fig_btc.update_layout(
-            plot_bgcolor="#0a0a0f",
-            paper_bgcolor="#0a0a0f",
-            font=dict(color="#e0e0e0"),
-            title_font=dict(color="#00e6b8", size=20),
-        )
-        st.plotly_chart(fig_btc, use_container_width=True)
-
-    except ModuleNotFoundError:
-        st.warning("⚠️ Crypto chart unavailable — install `pycoingecko` and reload.")
+            st.markdown("### 💹 Bitcoin 7-Day Trend")
+            fig_btc = px.line(
+                btc_df, x="date", y="price",
+                title="Bitcoin Price (USD, 7 Days)",
+                markers=True, line_shape="spline"
+            )
+            fig_btc.update_layout(
+                plot_bgcolor="#0a0a0f", paper_bgcolor="#0a0a0f",
+                font=dict(color="#e0e0e0"),
+                title_font=dict(color="#00e6b8", size=20),
+            )
+            st.plotly_chart(fig_btc, use_container_width=True)
+        else:
+            st.warning("⚠️ Unable to fetch crypto data.")
     except Exception as e:
-        st.warning(f"⚠️ Unable to fetch live crypto data: {e}")
-
+        st.warning(f"⚠️ Crypto chart unavailable: {e}")
 
     # --- AI Sentiment Summaries ---
-    import openai, os
-    openai.api_key = os.getenv("OPENAI_API_KEY", "sk-...")  # replace with your key or env var
-
     st.markdown("### 🧠 AI Domain Insights")
-    for _, row in df_sorted.iterrows():
-        prompt = f"Give a one-sentence market sentiment summary for this domain: {row['name']} — data: {row['summary']}"
-        try:
-            completion = openai.ChatCompletion.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You are The Alchemist AI, a concise financial sentiment analyst."},
-                    {"role": "user", "content": prompt},
-                ],
-                max_tokens=50,
-            )
-            ai_summary = completion.choices[0].message.content.strip()
-        except Exception:
-            ai_summary = "⚠️ Unable to fetch AI summary (no API key set)."
-
-        st.markdown(
-            f"<div class='card'><b>{row['name'].capitalize()}</b><br><span style='color:#00e6b8;'>{ai_summary}</span></div>",
-            unsafe_allow_html=True
-        )
+    try:
+        import openai
+        openai.api_key = os.getenv("OPENAI_API_KEY", "")
+        if openai.api_key:
+            for i, row in df_sorted.iterrows():
+                prompt = f"Give a concise market sentiment for {row['name']} based on: {row['summary']}"
+                completion = openai.ChatCompletion.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "You are The Alchemist AI, a financial sentiment analyst."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=50
+                )
+                ai_summary = completion.choices[0].message.content.strip()
+                st.markdown(
+                    f"<div class='card'><b>{row['name'].capitalize()}</b><br>"
+                    f"<span style='color:#00e6b8;'>{ai_summary}</span></div>",
+                    unsafe_allow_html=True
+                )
+        else:
+            st.warning("⚠️ AI summaries disabled (no OpenAI API key).")
+    except Exception as e:
+        st.warning(f"⚠️ AI summarization unavailable: {e}")
 
 else:
-    st.warning("No data found — run `python main.py` to generate new reports.")
+    st.warning("No summary file found — run `python main.py` to generate reports.")
 
 st.markdown("<hr/>", unsafe_allow_html=True)
 st.markdown(
-    "<p style='text-align:center;color:#d4af37;'>🧠 The Alchemist AI — balanced elegance ✨</p>",
+    "<p style='text-align:center;color:#d4af37;'>⚗️ The Alchemist — elegant intelligence, live and aware ✨</p>",
     unsafe_allow_html=True,
 )
-
