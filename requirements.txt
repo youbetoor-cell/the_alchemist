@@ -1,22 +1,22 @@
-# Core
+# --- Core ---
 streamlit==1.38.0
 pandas==2.2.2
 numpy==1.26.4
 
-# Visualization
-plotly==5.24.0
+# --- Visualization ---
+plotly==5.24.1
 matplotlib==3.9.2
 
-# API & Networking
+# --- Data & API ---
 requests==2.32.3
 yfinance==0.2.43
-pyarrow==17.0.0
+pyarrow==16.1.0  # ✅ use a wheel-compatible version
 
-# AI / Language
+# --- AI / Language ---
 openai==1.47.0
 
-# Automation
+# --- Automation ---
 streamlit-autorefresh==1.0.1
 
-# Utils
+# --- Utils ---
 tqdm==4.66.5
