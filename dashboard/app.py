@@ -5,16 +5,15 @@ import json
 from pathlib import Path
 from streamlit_autorefresh import st_autorefresh
 
+st.set_page_config(
+    page_title="The Alchemist Dashboard",
+    page_icon="🧙‍♂️",
+    layout="wide",
+)
+
 # --- Auto Refresh every 2 minutes ---
 st_autorefresh(interval=120 * 1000, key="datarefresh")
 
-# --- Page Setup ---
-st.set_page_config(
-    page_title="🧙‍♂️ The Alchemist Dashboard",
-    layout="wide",
-    page_icon="🌌",
-    initial_sidebar_state="expanded",
-)
 
 # --- Custom Styling ---
 st.markdown("""
