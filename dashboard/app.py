@@ -1,114 +1,120 @@
 import streamlit as st
 import pandas as pd
-import json
 import plotly.express as px
+import json
 from pathlib import Path
 from streamlit_autorefresh import st_autorefresh
 
-# --- Page Configuration ---
+# --- Auto Refresh every 2 minutes ---
+st_autorefresh(interval=120 * 1000, key="datarefresh")
+
+# --- Page Setup ---
 st.set_page_config(
     page_title="🧙‍♂️ The Alchemist Dashboard",
-    page_icon="🔮",
     layout="wide",
-    initial_sidebar_state="expanded"
+    page_icon="🌌",
+    initial_sidebar_state="expanded",
 )
 
-# --- Auto-refresh every 5 minutes ---
-st_autorefresh(interval=5 * 60 * 1000, key="datarefresh")
-
-# --- HEADER ---
+# --- Custom Styling ---
 st.markdown("""
     <style>
-        body {
-            background-color: #0E1117;
-            color: #E0E0E0;
-            font-family: 'Inter', sans-serif;
-        }
-        h1, h2, h3 {
-            color: #00C9A7;
-            text-shadow: 0 0 15px #00C9A7AA;
-        }
-        .stDataFrame, .stTable {
-            background-color: #111827;
-            border-radius: 10px;
-        }
-        hr {
-            border: 1px solid #333;
-        }
+    body {
+        background-color: #0E1117;
+        color: #FAFAFA;
+        font-family: 'Inter', sans-serif;
+    }
+    .block-container {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+    h1, h2, h3 {
+        color: #9AE6B4;
+        font-weight: 700;
+    }
+    .stDataFrame { border: 1px solid #333; border-radius: 10px; }
+    .metric-card {
+        padding: 15px;
+        border-radius: 15px;
+        background: linear-gradient(135deg, #111, #1A202C);
+        box-shadow: 0px 0px 15px rgba(0, 255, 204, 0.2);
+        text-align: center;
+    }
+    .pulse {
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0% { text-shadow: 0 0 5px #00FFD5; }
+        50% { text-shadow: 0 0 20px #00FFD5; }
+        100% { text-shadow: 0 0 5px #00FFD5; }
+    }
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-    <h1 style='text-align: center; color: #E0E0E0;'>
-        🧙‍♂️ The Alchemist: <span style='color:#00C9A7;'>Intelligence Dashboard</span>
-    </h1>
-    <p style='text-align:center; color:#A0A0A0; font-size:18px;'>
-        Real-time AI insights across <b>Crypto</b>, <b>Stocks</b>, <b>Sports</b>, and more.<br>
-        <small>Auto-refreshes every 5 minutes | Powered by The Alchemist AI System ⚡</small>
-    </p>
-""", unsafe_allow_html=True)
+# --- Header ---
+st.title("🧙‍♂️ The Alchemist: Intelligence Dashboard")
+st.markdown("### Real-time insights across domains — crypto, stocks, sports, and more.")
 
-# --- Load summary data ---
 summary_path = Path("data/summary.json")
 
-if not summary_path.exists():
-    st.warning("⚠️ No summary found yet. Run `python main.py` to generate reports.")
-    st.stop()
+if summary_path.exists():
+    with open(summary_path, "r") as f:
+        summary = json.load(f)
 
-with open(summary_path, "r") as f:
-    data = json.load(f)
+    st.markdown(f"📅 **Generated at:** `{summary.get('generated_at')}`")
 
-st.markdown(f"### 🗓️ Generated at: `{data.get('generated_at', 'Unknown')}`")
+    df = pd.DataFrame(summary["details"])
+    st.markdown("## 🏆 Current Rankings")
+    st.dataframe(df[["name", "score", "summary"]], use_container_width=True)
 
-# --- Ranking Table ---
-ranking_df = pd.DataFrame(data["details"])
-ranking_df = ranking_df.sort_values(by="score", ascending=False)
+    # --- Visualization: Domain Scores ---
+    st.markdown("## ⚡ Performance Overview")
+    fig = px.bar(
+        df,
+        x="name",
+        y="score",
+        color="score",
+        color_continuous_scale="teal",
+        text_auto=".2f",
+        title="Domain Strength Index",
+    )
+    fig.update_layout(
+        plot_bgcolor="#0E1117",
+        paper_bgcolor="#0E1117",
+        font_color="#FAFAFA",
+        title_font=dict(size=22, color="#00FFD5"),
+        hoverlabel_font_color="#111",
+        hoverlabel_bgcolor="#00FFD5",
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
-st.markdown("## 🏆 Current Domain Rankings")
-st.dataframe(
-    ranking_df[["name", "score", "summary"]],
-    use_container_width=True,
-    hide_index=True
-)
+    # --- Top Performer Card ---
+    top = df.sort_values("score", ascending=False).iloc[0]
+    st.markdown("## 🔥 Top Performer")
+    st.markdown(f"""
+        <div class='metric-card pulse'>
+            <h2>{top['name'].title()}</h2>
+            <h3>Score: {top['score']:.3f}</h3>
+            <p>{top['summary']}</p>
+        </div>
+    """, unsafe_allow_html=True)
 
-# --- Highlight Top Performer ---
-top = ranking_df.iloc[0]
-st.success(
-    f"🔥 **Top Performer:** {top['name'].capitalize()} with score **{top['score']:.2f}**\n\n"
-    f"💡 *{top['summary']}*"
-)
-
-# --- Plotly Chart ---
-fig = px.bar(
-    ranking_df,
-    x="name",
-    y="score",
-    color="score",
-    color_continuous_scale="tealrose",
-    title="📊 Domain Performance Overview",
-    height=400
-)
-fig.update_layout(
-    plot_bgcolor="#0E1117",
-    paper_bgcolor="#0E1117",
-    font=dict(color="#E0E0E0", size=14),
-)
-st.plotly_chart(fig, use_container_width=True)
+else:
+    st.warning("⚠️ No summary file found yet. Run `python main.py` to generate data.")
 
 # --- Crypto Snapshot ---
-crypto_report = Path("data/reports/crypto_report.json")
-if crypto_report.exists():
-    st.markdown("## 💰 Crypto Snapshot (Live Data)")
-    with open(crypto_report, "r") as f:
+crypto_path = Path("data/reports/crypto_report.json")
+if crypto_path.exists():
+    with open(crypto_path, "r") as f:
         crypto_data = json.load(f)
+    st.markdown("## 💰 Crypto Snapshot")
     st.json(crypto_data)
 else:
-    st.info("No crypto report found yet — run `python main.py` to fetch live data.")
+    st.info("No crypto report found yet — run main.py to fetch live data.")
 
-# --- Footer ---
+# --- AI Insight ---
+st.markdown("## 🧠 The Alchemist Insight")
 st.markdown("""
-    <hr style='border: 1px solid #444;'/>
-    <div style='text-align:center; color:#888; font-size:14px;'>
-        ⌛ Dashboard auto-updates hourly · Designed by <b>The Alchemist AI</b>
-    </div>
-""", unsafe_allow_html=True)
+✨ The Alchemist continuously studies cross-domain data to reveal hidden opportunities.  
+Next step: enable live AI summaries and predictive signal tracking.
+""")
