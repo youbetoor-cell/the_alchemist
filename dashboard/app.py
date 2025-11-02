@@ -6,6 +6,7 @@ from pathlib import Path
 import json
 from datetime import datetime
 import os
+import requests
 
 # --- Page Config ---
 st.set_page_config(
@@ -152,7 +153,6 @@ if hist_path.exists():
 
     # --- 7-Day Bitcoin Chart (safe version) ---
     try:
-        import requests
         url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart"
         params = {"vs_currency": "usd", "days": "7"}
         r = requests.get(url, params=params, timeout=10)
@@ -182,13 +182,23 @@ if hist_path.exists():
 # --- AI Sentiment Summaries ---
 from openai import OpenAI
 
-api_key = os.getenv("OPENAI_API_KEY", "")
-if not api_key:
-    st.warning("⚠️ AI summaries disabled — missing API key.")
-else:
-    client = OpenAI(api_key=api_key)
+st.markdown("### 🧠 AI Domain Insights")
 
-    st.markdown("### 🧠 AI Domain Insights")
+api_key = os.getenv("OPENAI_API_KEY", "").strip()
+client = None
+try:
+    if api_key:
+        client = OpenAI(api_key=api_key)
+        # Quick connection test
+        _ = client.models.list()
+        st.success("✅ AI connection established successfully.")
+    else:
+        st.warning("⚠️ AI summaries disabled — missing API key.")
+except Exception as e:
+    st.warning(f"⚠️ Connection failed: {e}")
+    client = None
+
+if client:
     for _, row in df_sorted.iterrows():
         prompt = f"Provide a concise market sentiment summary for {row['name']} based on: {row['summary']}"
         try:
