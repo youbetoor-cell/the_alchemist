@@ -195,21 +195,4 @@ try:
         client.api_key = api_key  # manually attach key to bypass Streamlit proxy issue
 
         for _, row in df_sorted.iterrows():
-            prompt = f"Provide a concise market sentiment summary for {row['name']} based on: {row['summary']}"
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You are The Alchemist AI, a concise financial sentiment analyst."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=60
-            )
-            ai_summary = response.choices[0].message.content.strip()
-
-            st.markdown(
-                f"<div class='card'><b>{row['name'].capitalize()}</b><br>"
-                f"<span style='color:#00e6b8;'>{ai_summary}</span></div>",
-                unsafe_allow_html=True
-            )
-except Exception as e:
-    st.warning(f"⚠️ AI summarization unavailable: {e}")
+            prompt = f"Provide a concise market sentiment summary
