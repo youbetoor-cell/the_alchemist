@@ -1,9 +1,5 @@
 {
-  "generated_at": "2025-11-02T14:59:45.923257Z",
-  "ticker": "AAPL",
-  "price_usd": 270.3699951171875,
-  "change_1d": -2.389976298994051,
-  "signal": "sell",
-  "summary": "AAPL closed at $270.37 (-2.39% today) \u2014 signal=sell",
-  "score": 0.261
+  "error": "single positional indexer is out-of-bounds",
+  "summary": "\u274c Failed to fetch stock data: single positional indexer is out-of-bounds",
+  "score": 0.5
 }
