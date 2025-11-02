@@ -179,12 +179,11 @@ if hist_path.exists():
     except Exception as e:
         st.warning(f"⚠️ Crypto chart unavailable: {e}")
 
-# --- AI Sentiment Summaries (with connection test + friendly feedback) ---
+# --- AI Sentiment Summaries (with connection test + no proxies bug) ---
 st.markdown("### 🧠 AI Domain Insights")
 
 import os
 import openai
-from openai import OpenAI
 
 api_key = os.getenv("OPENAI_API_KEY", "").strip()
 
@@ -195,16 +194,16 @@ if st.button("Run Connection Test"):
         st.error("❌ No OpenAI API key found. Please add it under Streamlit Secrets.")
     else:
         try:
-            client = OpenAI(api_key=api_key)
-            test = client.chat.completions.create(
-                model="gpt-4o-mini",
+            openai.api_key = api_key
+            test = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "You are The Alchemist AI."},
                     {"role": "user", "content": "Say 'connection confirmed'."}
                 ],
                 max_tokens=10
             )
-            st.success(f"✅ AI connection confirmed: {test.choices[0].message.content.strip()}")
+            st.success(f"✅ AI connection confirmed: {test.choices[0].message['content'].strip()}")
         except Exception as e:
             st.error(f"⚠️ Connection failed: {e}")
 
@@ -215,20 +214,20 @@ if not api_key:
     st.warning("⚠️ AI summaries disabled — missing `OPENAI_API_KEY` in secrets.")
 else:
     try:
-        client = OpenAI(api_key=api_key)
+        openai.api_key = api_key
         summaries = []
         for _, row in df_sorted.iterrows():
             prompt = f"Provide a short market sentiment summary for {row['name']} based on: {row['summary']}"
             try:
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
                     messages=[
                         {"role": "system", "content": "You are The Alchemist AI, a concise sentiment analyst."},
                         {"role": "user", "content": prompt}
                     ],
                     max_tokens=60
                 )
-                ai_summary = response.choices[0].message.content.strip()
+                ai_summary = response.choices[0].message['content'].strip()
             except Exception as e:
                 ai_summary = f"⚠️ Summary unavailable ({str(e)[:60]}...)"
             summaries.append((row['name'], ai_summary))
@@ -242,3 +241,4 @@ else:
 
     except Exception as e:
         st.warning(f"⚠️ AI summarization unavailable: {e}")
+
