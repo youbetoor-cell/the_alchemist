@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 from pathlib import Path
 import json
 from datetime import datetime
-import os, requests, httpx, numpy as np
+import os, requests, httpx
 from openai import OpenAI
 
 # --- Page Config ---
@@ -17,7 +17,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# --- Theme ---
+# --- Futuristic Theme ---
 st.markdown("""
 <style>
 body {
@@ -49,216 +49,123 @@ h1, h2, h3 {
 st_autorefresh(interval=10 * 60 * 1000, key="refresh")
 
 st.title("⚗️ The Alchemist Intelligence Dashboard")
-st.caption("Gold, silver & light — with AI, volume, and flow ✨")
+st.caption("Gold, silver & light — unified with AI, volume, and flow ✨")
 
-# --- Load summary ---
+# --- Load Summary Data ---
 summary_path = Path("data/summary.json")
+df_sorted = pd.DataFrame()
 if summary_path.exists():
     with open(summary_path, "r") as f:
         data = json.load(f)
-
+    df_sorted = pd.DataFrame(data.get("details", []))
+    df_sorted = df_sorted.sort_values("score", ascending=False).reset_index(drop=True)
     st.markdown(f"🕒 **Last update:** `{data.get('generated_at', datetime.utcnow())}`")
-    df = pd.DataFrame(data.get("details", []))
-    df_sorted = df.sort_values("score", ascending=False).reset_index(drop=True)
 
-    top_name = df_sorted.iloc[0]["name"]
-    top_score = df_sorted.iloc[0]["score"]
-
-    st.markdown(f"🏆 **Top Performer:** `{top_name.capitalize()}` — **{top_score:.3f}**")
-
-    # --- Domain Cards ---
-    st.markdown("### 🧩 Domain Performance Overview")
-    cols = st.columns(len(df_sorted))
-    for i, row in df_sorted.iterrows():
-        highlight = " highlight" if row["name"] == top_name else ""
-        with cols[i]:
-            st.markdown(
-                f"<div class='card{highlight}'><h3>{row['name'].capitalize()}</h3>"
-                f"<h2 style='color:#f7e28f;'>Score: {row['score']:.3f}</h2>"
-                f"<p style='font-size:0.9em;color:#bfbfbf;'>{row['summary'][:100]}...</p></div>",
-                unsafe_allow_html=True
-            )
-
-    # --- Domain Bar Chart ---
-    st.markdown("### 📊 Domain Scores Overview")
-    fig = px.bar(
-        df_sorted, y="name", x="score", orientation="h",
-        color="score", color_continuous_scale=["#b8860b", "#d4af37", "#00e6b8"],
-        text_auto=".3f", title="Performance Across Domains"
-    )
-    fig.update_layout(
-        plot_bgcolor="#0a0a0f", paper_bgcolor="#0a0a0f",
-        font=dict(color="#e0e0e0")
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-# --- Historical Chart ---
-hist_path = Path("data/history.json")
-if hist_path.exists():
-    with open(hist_path, "r") as f:
-        hist = json.load(f)
-    hist_df = pd.DataFrame(hist)
-    hist_df["timestamp"] = pd.to_datetime(hist_df["timestamp"])
-
-    st.markdown("### ⏳ Performance Over Time")
-    domain_choice = st.selectbox("Select domain:", hist_df["domain"].unique())
-    filtered = hist_df[hist_df["domain"] == domain_choice].sort_values("timestamp")
-
-    fig_hist = px.line(
-        filtered, x="timestamp", y="score",
-        title=f"{domain_choice.capitalize()} — Score Trend",
-        markers=True, line_shape="spline",
-        color_discrete_sequence=["#00e6b8"]
-    )
-    fig_hist.update_layout(
-        plot_bgcolor="#0a0a0f", paper_bgcolor="#0a0a0f",
-        font=dict(color="#e0e0e0")
-    )
-    st.plotly_chart(fig_hist, use_container_width=True)
-
-# --- Dynamic BTC Chart ---
-st.markdown("### 💹 Bitcoin Trend (Dynamic Range)")
-ranges = {
-    "30 Days": "30", "7 Days": "7", "1 Day": "1",
-    "4 Hours": "0.1666", "1 Hour": "0.0416",
-    "30 Minutes": "0.0208", "15 Minutes": "0.0104",
-    "5 Minutes": "0.0034", "1 Minute": "0.0007"
-}
-choice = st.selectbox("Select range:", list(ranges.keys()), index=1)
-
-try:
-    url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart"
-    params = {"vs_currency": "usd", "days": ranges[choice]}
-    r = requests.get(url, params=params, timeout=10)
-    if r.status_code == 200:
-        df_btc = pd.DataFrame(r.json()["prices"], columns=["ts", "price"])
-        df_btc["date"] = pd.to_datetime(df_btc["ts"], unit="ms")
-        fig_btc = px.line(df_btc, x="date", y="price",
-                          title=f"Bitcoin Price (USD, {choice})",
-                          line_shape="spline", markers=True)
-        fig_btc.update_layout(
-            plot_bgcolor="#0a0a0f", paper_bgcolor="#0a0a0f",
-            font=dict(color="#e0e0e0")
-        )
-        st.plotly_chart(fig_btc, use_container_width=True)
-except Exception as e:
-    st.warning(f"⚠️ BTC chart unavailable: {e}")
-
-# --- Volume & Momentum Detector ---
-st.markdown("### 🚨 Volume & Momentum Detector (Top 100 Coins)")
-force_show = ["bitcoin", "ethereum", "solana"]
-
-try:
-    url = "https://api.coingecko.com/api/v3/coins/markets"
-    params = {
-        "vs_currency": "usd",
-        "order": "market_cap_desc",
-        "per_page": 100,
-        "page": 1,
-        "sparkline": False
-    }
-
-    response = requests.get(url, params=params, timeout=25)
-    if response.status_code != 200:
-        raise ValueError(f"CoinGecko API returned {response.status_code}")
-
-    markets = response.json()
-    if not isinstance(markets, list) or not markets:
-        raise ValueError("Empty or invalid CoinGecko response")
-
-    df = pd.DataFrame(markets)
-    valid_cols = [c for c in ["id", "symbol", "name", "total_volume", "current_price", "price_change_percentage_24h"] if c in df.columns]
-    df = df[valid_cols]
-
-    if df.empty:
-        st.warning("⚠️ No valid data returned from CoinGecko.")
-    else:
-        st.success(f"💹 Loaded {len(df)} coins successfully from CoinGecko.")
-
-        # Display BTC, ETH, SOL mini-charts
-        df_force = df[df["id"].isin(force_show)]
-        for _, row in df_force.iterrows():
-            mc_url = f"https://api.coingecko.com/api/v3/coins/{row['id']}/market_chart"
-            mc_params = {"vs_currency": "usd", "days": "1"}
-            mc = requests.get(mc_url, params=mc_params, timeout=25).json()
-
-            prices = pd.DataFrame(mc.get("prices", []), columns=["ts", "price"])
-            volumes = pd.DataFrame(mc.get("total_volumes", []), columns=["ts", "volume"])
-            prices["dt"] = pd.to_datetime(prices["ts"], unit="ms")
-            volumes["dt"] = pd.to_datetime(volumes["ts"], unit="ms")
-
-            if len(prices) > 5 and len(volumes) > 5:
-                fig = go.Figure()
-                fig.add_trace(go.Bar(x=volumes["dt"], y=volumes["volume"],
-                                     name="Volume", marker_color="#00e6b8", yaxis="y1"))
-                fig.add_trace(go.Scatter(x=prices["dt"], y=prices["price"],
-                                         mode="lines", line=dict(color="#d4af37", width=2),
-                                         name="Price (USD)", yaxis="y2"))
-                fig.update_layout(
-                    title=f"{row['name']} ({row['symbol'].upper()}) — 30m Volume & Price",
-                    barmode="overlay", height=180,
-                    paper_bgcolor="#0a0a0f", plot_bgcolor="#0a0a0f",
-                    font=dict(color="#e0e0e0", size=10),
-                    margin=dict(l=0, r=0, t=30, b=0),
-                    yaxis=dict(title="Volume"),
-                    yaxis2=dict(title="Price", overlaying="y", side="right")
-                )
-                st.plotly_chart(fig, use_container_width=True)
-except Exception as e:
-    st.warning(f"⚠️ Detector unavailable: {e}")
-
-# --- 🧠 AI Domain Insights ---
-st.markdown("### 🧠 AI Domain Insights")
+# --- AI Client Setup ---
 api_key = os.getenv("OPENAI_API_KEY", "").strip()
 client = None
-
-if st.button("🔍 Test AI Connection"):
-    if not api_key:
-        st.warning("⚠️ Missing API key. Add it in Streamlit Secrets.")
-    else:
-        try:
-            test_client = OpenAI(api_key=api_key, http_client=httpx.Client(verify=True))
-            test_client.models.list()
-            st.success("✅ Connection successful — models fetched!")
-        except Exception as e:
-            st.error(f"⚠️ Connection test failed: {e}")
-
-try:
-    if api_key:
+if api_key:
+    try:
         client = OpenAI(api_key=api_key, http_client=httpx.Client(verify=True))
         client.models.list()
         st.success("✅ AI connection established successfully.")
-    else:
-        st.warning("⚠️ Missing API key — AI summaries disabled.")
-except Exception as e:
-    st.warning(f"⚠️ Connection failed: {e}")
-    client = None
+    except Exception as e:
+        st.warning(f"⚠️ AI connection failed: {e}")
+else:
+    st.warning("⚠️ Missing API key — AI summaries disabled.")
 
-if client and summary_path.exists():
-    for _, row in df_sorted.iterrows():
-        prompt = f"Provide a concise market sentiment summary for {row['name']} based on: {row['summary']}"
-        try:
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You are The Alchemist AI, a concise market analyst."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=60
+# --- Helper: Crypto data fetch ---
+def get_coin_chart(coin_id, days="1"):
+    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
+    params = {"vs_currency": "usd", "days": days}
+    r = requests.get(url, params=params, timeout=15)
+    if r.status_code != 200:
+        return None
+    data = r.json()
+    prices = pd.DataFrame(data.get("prices", []), columns=["ts", "price"])
+    volumes = pd.DataFrame(data.get("total_volumes", []), columns=["ts", "volume"])
+    prices["dt"] = pd.to_datetime(prices["ts"], unit="ms")
+    volumes["dt"] = pd.to_datetime(volumes["ts"], unit="ms")
+    return prices, volumes
+
+# --- Intelligence Feed ---
+st.markdown("## 💡 The Alchemist Intelligence Feed")
+st.caption("Real-time AI, volume analysis, and sentiment insights for all domains ⚡")
+
+domains = ["crypto", "stocks", "sports", "forex", "social", "music"]
+
+for domain in domains:
+    with st.expander(f"💠 {domain.capitalize()} Intelligence", expanded=(domain == "crypto")):
+        ai_summary = None
+        if not df_sorted.empty and client:
+            row = df_sorted[df_sorted["name"] == domain]
+            if not row.empty:
+                prompt = f"Provide a concise market sentiment summary for {domain} based on: {row.iloc[0]['summary']}"
+                try:
+                    response = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[
+                            {"role": "system", "content": "You are The Alchemist AI, a concise financial sentiment analyst."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        max_tokens=60
+                    )
+                    ai_summary = response.choices[0].message.content.strip()
+                except Exception as e:
+                    ai_summary = f"⚠️ AI summary unavailable: {e}"
+
+        if ai_summary:
+            st.markdown(
+                f"<div class='card'><p style='color:#00e6b8;'>🔮 {ai_summary}</p></div>",
+                unsafe_allow_html=True
             )
-            ai_summary = response.choices[0].message.content.strip()
-        except Exception as e:
-            if "insufficient_quota" in str(e):
-                ai_summary = "💤 AI paused — quota exceeded."
-            else:
-                ai_summary = f"⚠️ Error: {e}"
 
-        st.markdown(
-            f"""
-            <div class='card'>
-                <b>{row['name'].capitalize()}</b><br>
-                <p style='color:#00e6b8;'>🔮 {ai_summary}</p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        # --- Domain-specific content ---
+        if domain == "crypto":
+            try:
+                url = "https://api.coingecko.com/api/v3/coins/markets"
+                params = {"vs_currency": "usd", "order": "market_cap_desc", "per_page": 10, "page": 1}
+                res = requests.get(url, params=params, timeout=20)
+                if res.status_code == 200:
+                    crypto_df = pd.DataFrame(res.json())
+                    cols = ["name", "symbol", "current_price", "price_change_percentage_24h", "total_volume"]
+                    crypto_df = crypto_df[cols]
+                    st.dataframe(crypto_df.set_index("symbol"))
+
+                    # BTC mini chart
+                    chart_data = get_coin_chart("bitcoin", "1")
+                    if chart_data:
+                        prices, volumes = chart_data
+                        fig = go.Figure()
+                        fig.add_trace(go.Scatter(x=prices["dt"], y=prices["price"],
+                                                 mode="lines", line=dict(color="#d4af37", width=2),
+                                                 name="BTC Price (USD)"))
+                        fig.add_trace(go.Bar(x=volumes["dt"], y=volumes["volume"] / 1e9,
+                                             name="Volume (B)", marker_color="#00e6b8", opacity=0.5, yaxis="y2"))
+                        fig.update_layout(
+                            title="Bitcoin (BTC) — 24h Price & Volume",
+                            yaxis=dict(title="Price (USD)"),
+                            yaxis2=dict(title="Volume (B)", overlaying="y", side="right"),
+                            height=300, paper_bgcolor="#0a0a0f", plot_bgcolor="#0a0a0f",
+                            font=dict(color="#e0e0e0")
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.warning("⚠️ Unable to fetch crypto data.")
+            except Exception as e:
+                st.warning(f"⚠️ Crypto feed unavailable: {e}")
+
+        elif domain == "stocks":
+            st.info("📈 Stocks data module coming soon — will integrate live Yahoo Finance feeds.")
+
+        elif domain == "sports":
+            st.info("🏟️ Sports intelligence coming — real-time event sentiment in next update.")
+
+        elif domain == "forex":
+            st.info("💱 Forex AI module in development (USD, EUR, GBP, JPY tracking).")
+
+        elif domain == "social":
+            st.info("🌐 Social media sentiment (Reddit + Twitter) integration coming soon.")
+
+        elif domain == "music":
+            st.info("🎵 Music trends module (Spotify/YouTube analytics) launching later this month.")
