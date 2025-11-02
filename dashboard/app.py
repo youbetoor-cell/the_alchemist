@@ -15,7 +15,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# --- Balanced Dark-Gold-Cyan Theme with Subtle Glow Animations ---
+# --- Dark-Gold-Cyan Theme with Intro Animation ---
 st.markdown("""
 <style>
 body {
@@ -23,6 +23,25 @@ body {
     color: #e0e0e0;
     font-family: 'Inter', sans-serif;
     overflow-x: hidden;
+    position: relative;
+}
+
+/* --- Intro Shimmer Animation --- */
+body::before {
+    content: "";
+    position: fixed;
+    top: 0; left: -50%;
+    width: 200%;
+    height: 100%;
+    background: linear-gradient(120deg, rgba(255,215,0,0.1) 0%, rgba(255,255,255,0.2) 30%, rgba(0,255,230,0.1) 60%);
+    transform: skewX(-20deg);
+    animation: shimmer 3s ease-in-out 1;
+    z-index: 999;
+}
+@keyframes shimmer {
+    0% { left: -60%; opacity: 0.2; }
+    50% { left: 0%; opacity: 0.6; }
+    100% { left: 60%; opacity: 0; }
 }
 
 /* Headings */
@@ -63,14 +82,14 @@ h1, h2, h3 {
     box-shadow: 0 0 25px rgba(255,215,0,0.25);
 }
 
-/* Pulse glow for energy effect */
+/* Pulse glow */
 @keyframes softPulse {
   0% { box-shadow: 0 0 15px rgba(255,215,0,0.08); }
   50% { box-shadow: 0 0 25px rgba(0,255,230,0.25); }
   100% { box-shadow: 0 0 15px rgba(255,215,0,0.08); }
 }
 
-/* Highlighted card (top performer) */
+/* Highlight (Top Performer) */
 .highlight {
     border: 1px solid #ffd700;
     box-shadow: 0 0 35px rgba(255, 215, 0, 0.5);
@@ -135,7 +154,7 @@ circle.fg {
 </div>
 """, unsafe_allow_html=True)
 
-# --- Gold + Cyan Gradient Definition ---
+# --- Gradient ---
 st.markdown("""
 <svg width="0" height="0">
   <defs>
@@ -152,7 +171,7 @@ st_autorefresh(interval=10 * 60 * 1000, key="refresh")
 
 # --- Header ---
 st.title("⚗️ The Alchemist Intelligence Dashboard")
-st.markdown("### Where precision meets beauty ⚡")
+st.markdown("### The fusion of gold, data, and light ⚡")
 
 # --- Load summary ---
 summary_path = Path("data/summary.json")
@@ -170,7 +189,7 @@ if summary_path.exists():
 
     st.markdown(f"🏆 **Top Performer:** `{top_name.capitalize()}` — **{top_score:.3f}**")
 
-    # --- Cards with Rings ---
+    # --- Cards + Rings ---
     st.markdown("### 🧩 Domain Performance Overview")
     cols = st.columns(3)
     for i, row in df_sorted.iterrows():
@@ -197,12 +216,13 @@ if summary_path.exists():
             """, unsafe_allow_html=True)
             st.markdown(f"<p style='font-size:0.9em;color:#bfbfbf;'>{row['summary'][:120]}...</p></div>", unsafe_allow_html=True)
 
-    # --- Fixed Domain Scores Overview Chart ---
+    # --- Horizontal Domain Scores Overview Chart ---
     st.markdown("### 📊 Domain Scores Overview")
     fig = px.bar(
         df_sorted,
-        x="name",
-        y="score",
+        y="name",
+        x="score",
+        orientation="h",
         text_auto=".3f",
         color="score",
         color_continuous_scale=["#b8860b", "#ffd700", "#00e6b8"],
@@ -218,8 +238,8 @@ if summary_path.exists():
         paper_bgcolor="#0a0a0f",
         font=dict(color="#e0e0e0"),
         title_font=dict(color="#f7e28f", size=22),
-        xaxis=dict(title="", tickfont=dict(size=14)),
-        yaxis=dict(gridcolor="#1e1e1e"),
+        yaxis=dict(title="", tickfont=dict(size=14)),
+        xaxis=dict(gridcolor="#1e1e1e"),
     )
     st.plotly_chart(fig, use_container_width=True)
 else:
@@ -228,6 +248,6 @@ else:
 # --- Footer ---
 st.markdown("<hr/>", unsafe_allow_html=True)
 st.markdown(
-    "<p style='text-align:center;color:#f7e28f;'>🧠 The Alchemist AI — elegance in equilibrium ✨</p>",
+    "<p style='text-align:center;color:#f7e28f;'>🧠 The Alchemist AI — elegance in motion ✨</p>",
     unsafe_allow_html=True,
 )
