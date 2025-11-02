@@ -179,7 +179,58 @@ if hist_path.exists():
     except Exception as e:
         st.warning(f"⚠️ Crypto chart unavailable: {e}")
 
-# --- AI Sentiment Summaries ---
+# --- 7-Day Bitcoin Chart (multi-range version) ---
+import requests
+
+st.markdown("### 💹 Bitcoin Trend (Dynamic Range)")
+time_ranges = {
+    "30 Days": ("30", "30d"),
+    "7 Days": ("7", "7d"),
+    "1 Day": ("1", "1d"),
+    "4 Hours": ("0.1666", "4h"),
+    "1 Hour": ("0.0416", "1h"),
+    "30 Minutes": ("0.0208", "30m"),
+    "15 Minutes": ("0.0104", "15m"),
+    "5 Minutes": ("0.0034", "5m"),
+    "1 Minute": ("0.0007", "1m"),
+}
+
+# Dropdown for chart range selection
+selected_label = st.selectbox("Select time range:", list(time_ranges.keys()), index=1)
+selected_days, label = time_ranges[selected_label]
+
+try:
+    url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart"
+    params = {"vs_currency": "usd", "days": selected_days}
+    r = requests.get(url, params=params, timeout=10)
+    if r.status_code == 200:
+        btc_data = r.json()
+        btc_prices = btc_data.get("prices", [])
+        btc_df = pd.DataFrame(btc_prices, columns=["timestamp", "price"])
+        btc_df["date"] = pd.to_datetime(btc_df["timestamp"], unit="ms")
+
+        fig_btc = px.line(
+            btc_df,
+            x="date",
+            y="price",
+            title=f"Bitcoin Price (USD, {label})",
+            markers=True,
+            line_shape="spline",
+        )
+        fig_btc.update_layout(
+            plot_bgcolor="#0a0a0f",
+            paper_bgcolor="#0a0a0f",
+            font=dict(color="#e0e0e0"),
+            title_font=dict(color="#00e6b8", size=20),
+        )
+        st.plotly_chart(fig_btc, use_container_width=True)
+    else:
+        st.warning(f"⚠️ Unable to fetch Bitcoin data ({r.status_code}).")
+except Exception as e:
+    st.warning(f"⚠️ Crypto chart unavailable: {e}")
+
+
+# --- 🧠 AI Domain Insights + Test Button ---
 from openai import OpenAI
 import httpx
 
@@ -188,11 +239,23 @@ st.markdown("### 🧠 AI Domain Insights")
 api_key = os.getenv("OPENAI_API_KEY", "").strip()
 client = None
 
+# --- Test AI Connection Button ---
+if st.button("🔍 Test AI Connection"):
+    if not api_key:
+        st.warning("⚠️ Missing API key. Add it in Streamlit Secrets.")
+    else:
+        try:
+            test_client = OpenAI(api_key=api_key, http_client=httpx.Client(verify=True))
+            models = test_client.models.list()
+            st.success("✅ Connection successful — models fetched!")
+        except Exception as e:
+            st.error(f"⚠️ Connection test failed: {e}")
+
+# --- Regular connection logic ---
 try:
     if api_key:
-        # Proxy-safe client for Streamlit Cloud
         client = OpenAI(api_key=api_key, http_client=httpx.Client(verify=True))
-        _ = client.models.list()  # test connection
+        _ = client.models.list()
         st.success("✅ AI connection established successfully.")
     else:
         st.warning("⚠️ AI summaries disabled — missing API key.")
@@ -213,9 +276,7 @@ if client:
                 max_tokens=60
             )
             ai_summary = response.choices[0].message.content.strip()
-
         except Exception as e:
-            # Graceful fallback for API quota issues
             if "insufficient_quota" in str(e):
                 ai_summary = "💤 AI paused — quota exceeded."
             elif "authentication_error" in str(e).lower():
