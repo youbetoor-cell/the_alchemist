@@ -167,17 +167,17 @@ if summary_path.exists():
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # --- 7-Day Crypto Chart ---
-    from pycoingecko import CoinGeckoAPI
-    cg = CoinGeckoAPI()
+    # --- 7-Day Crypto Chart (with safe fallback) ---
+    st.markdown("### 💹 Bitcoin 7-Day Trend")
 
     try:
+        from pycoingecko import CoinGeckoAPI
+        cg = CoinGeckoAPI()
         btc_data = cg.get_coin_market_chart_by_id(id='bitcoin', vs_currency='usd', days=7)
         btc_prices = btc_data['prices']
         btc_df = pd.DataFrame(btc_prices, columns=["timestamp", "price"])
         btc_df["date"] = pd.to_datetime(btc_df["timestamp"], unit="ms")
 
-        st.markdown("### 💹 Bitcoin 7-Day Trend")
         fig_btc = px.line(
             btc_df,
             x="date",
@@ -193,8 +193,12 @@ if summary_path.exists():
             title_font=dict(color="#00e6b8", size=20),
         )
         st.plotly_chart(fig_btc, use_container_width=True)
+
+    except ModuleNotFoundError:
+        st.warning("⚠️ Crypto chart unavailable — install `pycoingecko` and reload.")
     except Exception as e:
-        st.warning(f"⚠️ Unable to fetch crypto chart: {e}")
+        st.warning(f"⚠️ Unable to fetch live crypto data: {e}")
+
 
     # --- AI Sentiment Summaries ---
     import openai, os
