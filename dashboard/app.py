@@ -6,6 +6,7 @@ from pathlib import Path
 import json
 from datetime import datetime
 import time
+import math
 
 # --- Page Config ---
 st.set_page_config(
@@ -42,10 +43,11 @@ h1, h2, h3 {
     background: rgba(25, 25, 25, 0.95);
     border: 1px solid rgba(255, 215, 0, 0.3);
     border-radius: 15px;
-    padding: 1.2rem;
+    padding: 1.5rem;
     margin-bottom: 1rem;
     box-shadow: 0 0 25px rgba(255, 215, 0, 0.15);
     transition: all 0.3s ease;
+    text-align: center;
 }
 .card:hover {
     transform: translateY(-4px);
@@ -55,6 +57,20 @@ h1, h2, h3 {
     border: 1px solid #ffcc00;
     box-shadow: 0 0 40px rgba(255, 215, 0, 0.6);
 }
+svg {
+    transform: rotate(-90deg);
+}
+circle.bg {
+    stroke: rgba(255, 255, 255, 0.08);
+    stroke-width: 8;
+}
+circle.fg {
+    stroke: #ffd700;
+    stroke-width: 8;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 6px #ffcc00);
+    transition: stroke-dashoffset 1s ease-in-out;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -63,7 +79,7 @@ st_autorefresh(interval=10 * 60 * 1000, key="refresh")
 
 # --- Header ---
 st.title("🧙‍♂️ The Alchemist – Intelligence Dashboard")
-st.markdown("### Data alchemy in motion — gold-infused insights for 2025 ⚡")
+st.markdown("### Live golden intelligence feed – data alchemy for 2025 ⚡")
 
 # --- Load summary ---
 summary_path = Path("data/summary.json")
@@ -81,7 +97,7 @@ if summary_path.exists():
 
     st.markdown(f"🏆 **Top Performer:** `{top_name.capitalize()}` with score **{top_score:.3f}**")
 
-    # --- Animated gold counters ---
+    # --- Animated holographic cards ---
     st.markdown("### ✨ Domain Performance Overview")
     cols = st.columns(3)
 
@@ -92,14 +108,28 @@ if summary_path.exists():
 
         with cols[i % 3]:
             st.markdown(f"<div class='{style}'><h3>🔸 {row['name'].capitalize()}</h3>", unsafe_allow_html=True)
-            placeholder = st.empty()
-            for s in range(0, int(row['score'] * 1000), 50):
-                placeholder.markdown(f"<h2 style='color:#ffd700;'>Score: {s/1000:.3f}</h2>", unsafe_allow_html=True)
-                time.sleep(0.01)
-            placeholder.markdown(f"<h2 style='color:#ffd700;'>Score: {row['score']:.3f}</h2>", unsafe_allow_html=True)
+
+            # --- Animated circular progress ring ---
+            radius = 45
+            circumference = 2 * math.pi * radius
+            progress = row["score"]
+            offset = circumference * (1 - progress)
+
+            st.markdown(f"""
+            <div style="display:flex;justify-content:center;">
+                <svg width="120" height="120">
+                    <circle class="bg" cx="60" cy="60" r="{radius}" fill="none" />
+                    <circle class="fg" cx="60" cy="60" r="{radius}" fill="none"
+                        stroke-dasharray="{circumference}" stroke-dashoffset="{offset}">
+                    </circle>
+                </svg>
+            </div>
+            <h2 style='color:#ffd700;margin-top:-10px;'>Score: {row['score']:.3f}</h2>
+            """, unsafe_allow_html=True)
+
             st.markdown(f"<p style='font-size:0.9em;color:#e0c97f;'>{row['summary'][:120]}...</p></div>", unsafe_allow_html=True)
 
-    # --- Gold chart ---
+    # --- Bar chart ---
     st.markdown("### 📊 Performance Comparison")
     fig = px.bar(
         df_sorted,
@@ -121,6 +151,6 @@ else:
 # --- Footer ---
 st.markdown("<hr/>", unsafe_allow_html=True)
 st.markdown(
-    "<p style='text-align:center;color:#ffd700;'>🧠 The Alchemist AI — turning raw data into gold ✨</p>",
+    "<p style='text-align:center;color:#ffd700;'>🧠 The Alchemist AI — turning data into gold ✨</p>",
     unsafe_allow_html=True,
 )
