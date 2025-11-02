@@ -25,7 +25,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install jq
+          sudo apt-get update && sudo apt-get install -y jq curl
 
       - name: 🧙 Run The Alchemist agents
         run: python main.py
@@ -38,46 +38,51 @@ jobs:
           git commit -m "Auto-update $(date -u +'%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
           git push || echo "No push changes"
 
+      - name: 🗓️ Save last update message
+        run: |
+          echo "$(date -u +'%Y-%m-%d %H:%M:%S') UTC — The Alchemist update complete." > data/last_update.txt
+          git add data/last_update.txt
+          git commit -m "Log: update timestamp" || echo "No changes"
+          git push || echo "No push changes"
+
       - name: 📣 Notify Slack
         if: success()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           if [ -n "$SLACK_WEBHOOK_URL" ]; then
             TOP=$(jq -r '.details | max_by(.score) | .name' data/summary.json)
             SCORE=$(jq -r '.details | max_by(.score) | .score' data/summary.json)
+            SUMMARY=$(jq -r ".details[] | select(.name==\"$TOP\") | .summary" data/summary.json)
+            
+            # Ask OpenAI for sentiment
+            SENTIMENT=$(curl -s https://api.openai.com/v1/chat/completions \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $OPENAI_API_KEY" \
+              -d "{
+                \"model\": \"gpt-4o-mini\",
+                \"messages\": [
+                  {\"role\": \"system\", \"content\": \"You are The Alchemist AI. Reply with one word sentiment (🟢 bullish / 🔴 bearish / ⚪ neutral) and a 5-word summary.\"},
+                  {\"role\": \"user\", \"content\": \"Analyze domain $TOP with summary: $SUMMARY\"}
+                ],
+                \"max_tokens\": 25
+              }" | jq -r '.choices[0].message.content')
+
             MESSAGE="🧙‍♂️ *The Alchemist Update Complete!* \
-            \nTop Performer: *$TOP* — Score: *$SCORE* \
-            \nTime: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+            \n🏆 *Top Performer:* ${TOP^} — Score: *$SCORE* \
+            \n🔮 *AI Sentiment:* $SENTIMENT \
+            \n🕒 *Time:* $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+
+            # Save message for dashboard
+            echo "$MESSAGE" > data/last_update.txt
+            git add data/last_update.txt
+            git commit -m "Update last Slack message" || echo "No changes"
+            git push || echo "No push changes"
+
+            # Send Slack message
             curl -X POST -H 'Content-type: application/json' \
               --data "{\"text\":\"$MESSAGE\"}" "$SLACK_WEBHOOK_URL"
-          fi
-
-          # Fetch AI sentiment (via OpenAI API)
-          SENTIMENT=$(curl https://api.openai.com/v1/chat/completions \
-            -s \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer $OPENAI_API_KEY" \
-            -d "{
-              \"model\": \"gpt-4o-mini\",
-              \"messages\": [
-                {\"role\": \"system\", \"content\": \"You are The Alchemist AI. Reply with one word sentiment (🟢 bullish / 🔴 bearish / ⚪ neutral) and 4-6 words of explanation.\"},
-                {\"role\": \"user\", \"content\": \"Analyze domain $TOP_DOMAIN with summary: $SUMMARY\"}
-              ],
-              \"max_tokens\": 25
-            }" | jq -r '.choices[0].message.content')
-
-          # Compose Slack message
-          MESSAGE="🧙‍♂️ *The Alchemist has forged new insights!*
-          \n🏆 *Top Performer:* ${TOP_DOMAIN^} (score $TOP_SCORE)
-          \n🔮 *AI Sentiment:* $SENTIMENT
-          \n📊 *Next update:* in 1 hour"
-
-          # Send Slack message
-          if [ -n "$SLACK_WEBHOOK_URL" ]; then
-            curl -X POST -H 'Content-type: application/json' \
-              --data "{\"text\":\"$MESSAGE\"}" \
-              "$SLACK_WEBHOOK_URL"
           else
             echo "⚠️ No Slack webhook found, skipping notification."
           fi
