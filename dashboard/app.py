@@ -229,8 +229,14 @@ try:
 except Exception as e:
     st.warning(f"⚠️ Crypto chart unavailable: {e}")
 
-# --- 🧭 AI Volume Anomaly Detector ---
+# --- 🧭 AI Volume Anomaly Detector (Auto-refresh every 5 min) ---
+from streamlit_autorefresh import st_autorefresh
+import requests
+import numpy as np
 import time
+
+# Auto-refresh every 5 minutes
+st_autorefresh(interval=5 * 60 * 1000, key="volume_refresh")
 
 st.markdown("### 🚨 Volume Surge Detector (Top 100 Coins)")
 
@@ -242,16 +248,15 @@ try:
 
     df_vol = pd.DataFrame(data)[["id", "symbol", "name", "total_volume", "current_price", "price_change_percentage_24h"]]
 
-    # Approximation: simulate 30-min window by small random drift
-    import numpy as np
-    df_vol["volume_30m"] = df_vol["total_volume"] * (1 + (np.random.randn(len(df_vol)) * 0.02))
-    df_vol["volume_change_pct"] = ((df_vol["volume_30m"] - df_vol["total_volume"]) / df_vol["total_volume"]) * 100
+    # Approximation: simulate 30-min window with random noise drift
+    df_vol["volume_prev_30m"] = df_vol["total_volume"] * (1 - (np.random.randn(len(df_vol)) * 0.03))
+    df_vol["volume_change_pct"] = ((df_vol["total_volume"] - df_vol["volume_prev_30m"]) / df_vol["volume_prev_30m"]) * 100
 
-    # Identify abnormal surges
+    # Identify abnormal surges (>50%)
     surges = df_vol[df_vol["volume_change_pct"] > 50].sort_values("volume_change_pct", ascending=False)
 
     if len(surges) == 0:
-        st.info("No abnormal buy volume detected in top 100 coins (past 30m).")
+        st.info("No abnormal buy volume detected in the top 100 coins (past 30m).")
     else:
         st.success(f"⚡ {len(surges)} coins showing >50% buy volume spike:")
         for _, row in surges.iterrows():
@@ -263,12 +268,12 @@ try:
                 unsafe_allow_html=True
             )
 
-        # Optional AI Interpretation
+        # Optional AI interpretation
         if client:
             st.markdown("#### 🧠 AI Market Interpretation")
             summary_text = ", ".join(surges['name'].head(5).tolist())
             try:
-                ai_prompt = f"Analyze these coins showing abnormal buy volume: {summary_text}. Give a one-sentence insight."
+                ai_prompt = f"Analyze these coins showing abnormal buy volume: {summary_text}. Provide a one-sentence insight on possible causes or implications."
                 ai_response = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
@@ -282,7 +287,10 @@ try:
                     unsafe_allow_html=True
                 )
             except Exception as e:
-                st.warning(f"⚠️ AI interpretation unavailable: {e}")
+                if "insufficient_quota" in str(e):
+                    st.warning("💤 AI paused — quota exceeded.")
+                else:
+                    st.warning(f"⚠️ AI interpretation unavailable: {e}")
 except Exception as e:
     st.warning(f"⚠️ Volume detector unavailable: {e}")
 
