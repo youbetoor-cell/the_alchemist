@@ -1,5 +1,4 @@
-build-essential
 cmake
+libatlas-base-dev
+build-essential
 python3-dev
-libssl-dev
-libffi-dev
