@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
+import plotly.express as px
 import requests, json, os, httpx, numpy as np
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -23,13 +23,13 @@ body { background: radial-gradient(circle at 20% 30%, #050505, #0a0a0f); color: 
 h1,h2,h3 { color:#d4af37 !important; text-shadow:0 0 12px rgba(255,215,0,0.3); }
 .card { background:rgba(18,18,22,0.85); border:1px solid rgba(160,160,160,0.25); border-radius:15px; padding:1rem; margin:0.5rem; text-align:center; box-shadow:0 0 25px rgba(255,215,0,0.05); }
 .card:hover { transform:translateY(-3px); box-shadow:0 0 25px rgba(0,255,230,0.3); }
+.spark { height: 60px; }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("⚗️ The Alchemist Intelligence Dashboard")
-st.caption("Gold, silver & light — unified AI, trends, and flow ✨")
+st.caption("💡 Unified feed — AI + trends + volume ✨")
 
-# --- Auto refresh ---
 st_autorefresh(interval=10 * 60 * 1000, key="refresh")
 
 # --- Load summary ---
@@ -46,7 +46,6 @@ if summary_path.exists():
 # --- Intelligence Feed ---
 st.markdown("## 💡 Unified Intelligence Feed")
 
-# Initialize AI
 api_key = os.getenv("OPENAI_API_KEY", "").strip()
 client = None
 if api_key:
@@ -55,7 +54,6 @@ if api_key:
     except Exception as e:
         st.warning(f"⚠️ AI unavailable: {e}")
 
-# Domains from summary
 domains = df_sorted["name"].tolist() if summary_path.exists() else []
 
 for domain in domains:
@@ -63,15 +61,15 @@ for domain in domains:
         domain_summary = df_sorted[df_sorted["name"] == domain].iloc[0]["summary"]
         st.markdown(f"**Summary:** {domain_summary}")
 
-        # --- AI sentiment ---
+        # --- AI Sentiment ---
         ai_summary = "💤 (Skipped — no AI key)"
         if client:
             try:
                 resp = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
-                        {"role": "system", "content": "You are The Alchemist AI — a concise financial and data analyst."},
-                        {"role": "user", "content": f"Summarize market sentiment and key trend for {domain} based on: {domain_summary}"}
+                        {"role": "system", "content": "You are The Alchemist AI — a concise financial analyst."},
+                        {"role": "user", "content": f"Summarize sentiment and key movement for {domain} based on: {domain_summary}"}
                     ],
                     max_tokens=60
                 )
@@ -79,29 +77,36 @@ for domain in domains:
             except Exception as e:
                 ai_summary = f"⚠️ AI unavailable: {e}"
 
-        st.markdown(f"<p style='color:#00e6b8;'>🔮 {ai_summary}</p>", unsafe_allow_html=True)
-
-        # --- Charts ---
-        if domain.lower() == "crypto":
+        # --- Inline Sparkline + Summary Layout ---
+        col1, col2 = st.columns([3, 2])
+        with col1:
+            st.markdown(f"<p style='color:#00e6b8;'>🔮 {ai_summary}</p>", unsafe_allow_html=True)
+        with col2:
             try:
-                url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart"
-                params = {"vs_currency": "usd", "days": "7"}
-                r = requests.get(url, params=params, timeout=10)
-                btc = pd.DataFrame(r.json()["prices"], columns=["ts", "price"])
-                btc["date"] = pd.to_datetime(btc["ts"], unit="ms")
-                fig = px.line(btc, x="date", y="price", title="Bitcoin 7-Day Trend", line_shape="spline", markers=True)
-                fig.update_layout(plot_bgcolor="#0a0a0f", paper_bgcolor="#0a0a0f", font=dict(color="#e0e0e0"))
-                st.plotly_chart(fig, use_container_width=True)
+                if domain.lower() == "crypto":
+                    # 24h BTC sparkline
+                    url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart"
+                    params = {"vs_currency": "usd", "days": "1"}
+                    r = requests.get(url, params=params, timeout=10)
+                    prices = pd.DataFrame(r.json()["prices"], columns=["ts", "price"])
+                    prices["dt"] = pd.to_datetime(prices["ts"], unit="ms")
+                    fig = go.Figure(go.Scatter(
+                        x=prices["dt"], y=prices["price"],
+                        mode="lines", line=dict(color="#00e6b8", width=2),
+                        fill="tozeroy", fillcolor="rgba(0,230,184,0.2)"
+                    ))
+                    fig.update_layout(
+                        height=60, margin=dict(l=0, r=0, t=0, b=0),
+                        xaxis=dict(visible=False), yaxis=dict(visible=False),
+                        plot_bgcolor="#0a0a0f", paper_bgcolor="#0a0a0f"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.markdown("<small style='color:#999;'>No sparkline available</small>", unsafe_allow_html=True)
             except Exception as e:
-                st.warning(f"⚠️ Crypto chart unavailable: {e}")
+                st.warning(f"⚠️ Sparkline unavailable: {e}")
 
-        elif domain.lower() == "stocks":
-            st.info("📈 Stock data will appear here soon (AAPL, MSFT, TSLA, etc.)")
-
-        elif domain.lower() == "sports":
-            st.info("🏟️ Sports metrics visualization coming soon.")
-
-# --- Volume & Momentum Detector ---
+# --- Volume & Momentum Alerts ---
 st.markdown("## 🚨 Volume & Momentum Alerts (Top 100 Coins)")
 try:
     url = "https://api.coingecko.com/api/v3/coins/markets"
