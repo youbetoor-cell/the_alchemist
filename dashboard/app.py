@@ -229,16 +229,18 @@ try:
 except Exception as e:
     st.warning(f"⚠️ Crypto chart unavailable: {e}")
 
-# --- 🧭 AI Volume Anomaly Detector (Auto-refresh every 5 min) ---
+# --- 🧭 AI Volume Anomaly Detector (Auto-refresh + Slack Alerts) ---
 from streamlit_autorefresh import st_autorefresh
 import requests
 import numpy as np
-import time
+import os
+import httpx
 
-# Auto-refresh every 5 minutes
 st_autorefresh(interval=5 * 60 * 1000, key="volume_refresh")
 
 st.markdown("### 🚨 Volume Surge Detector (Top 100 Coins)")
+
+slack_url = os.getenv("SLACK_WEBHOOK_URL", "").strip()
 
 try:
     # Fetch top 100 coins by market cap
@@ -248,7 +250,7 @@ try:
 
     df_vol = pd.DataFrame(data)[["id", "symbol", "name", "total_volume", "current_price", "price_change_percentage_24h"]]
 
-    # Approximation: simulate 30-min window with random noise drift
+    # Simulate 30-min window with mild noise drift (approximation)
     df_vol["volume_prev_30m"] = df_vol["total_volume"] * (1 - (np.random.randn(len(df_vol)) * 0.03))
     df_vol["volume_change_pct"] = ((df_vol["total_volume"] - df_vol["volume_prev_30m"]) / df_vol["volume_prev_30m"]) * 100
 
@@ -259,8 +261,16 @@ try:
         st.info("No abnormal buy volume detected in the top 100 coins (past 30m).")
     else:
         st.success(f"⚡ {len(surges)} coins showing >50% buy volume spike:")
+        alert_messages = []
         for _, row in surges.iterrows():
             color = "🟢" if row["volume_change_pct"] > 75 else "🟡"
+            msg = (
+                f"{color} *{row['name']} ({row['symbol'].upper()})*\n"
+                f"Buy Volume Surge: +{row['volume_change_pct']:.1f}%\n"
+                f"Price: ${row['current_price']:.2f} | 24h Δ {row['price_change_percentage_24h']:.2f}%"
+            )
+            alert_messages.append(msg)
+
             st.markdown(
                 f"<div class='card'><b>{row['name']} ({row['symbol'].upper()})</b><br>"
                 f"{color} +{row['volume_change_pct']:.1f}% buy volume<br>"
@@ -268,12 +278,16 @@ try:
                 unsafe_allow_html=True
             )
 
-        # Optional AI interpretation
+        # --- AI Interpretation ---
+        ai_summary = ""
         if client:
             st.markdown("#### 🧠 AI Market Interpretation")
             summary_text = ", ".join(surges['name'].head(5).tolist())
             try:
-                ai_prompt = f"Analyze these coins showing abnormal buy volume: {summary_text}. Provide a one-sentence insight on possible causes or implications."
+                ai_prompt = (
+                    f"Analyze these coins showing abnormal buy volume: {summary_text}. "
+                    f"Give a one-sentence summary of market sentiment or potential causes."
+                )
                 ai_response = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
@@ -282,15 +296,36 @@ try:
                     ],
                     max_tokens=60
                 )
+                ai_summary = ai_response.choices[0].message.content.strip()
                 st.markdown(
-                    f"<p style='color:#00e6b8;font-style:italic;'>{ai_response.choices[0].message.content.strip()}</p>",
+                    f"<p style='color:#00e6b8;font-style:italic;'>{ai_summary}</p>",
                     unsafe_allow_html=True
                 )
             except Exception as e:
                 if "insufficient_quota" in str(e):
-                    st.warning("💤 AI paused — quota exceeded.")
+                    ai_summary = "💤 AI paused — quota exceeded."
+                    st.warning(ai_summary)
                 else:
                     st.warning(f"⚠️ AI interpretation unavailable: {e}")
+
+        # --- Slack Alerts ---
+        if slack_url:
+            try:
+                full_message = (
+                    "🧙‍♂️ *The Alchemist Volume Alert!*\n"
+                    f"{len(surges)} coin(s) showing >50% buy volume surge:\n\n"
+                    + "\n\n".join(alert_messages)
+                )
+                if ai_summary:
+                    full_message += f"\n\n🔮 *AI Insight:* {ai_summary}"
+
+                httpx.post(slack_url, json={"text": full_message})
+                st.success("📣 Sent alert to Slack successfully.")
+            except Exception as e:
+                st.warning(f"⚠️ Slack alert failed: {e}")
+        else:
+            st.info("ℹ️ Slack alerts disabled — add SLACK_WEBHOOK_URL to your Streamlit secrets.")
+
 except Exception as e:
     st.warning(f"⚠️ Volume detector unavailable: {e}")
 
