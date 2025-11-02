@@ -336,12 +336,16 @@ try:
                     )
                     st.plotly_chart(fig, use_container_width=True)
 
-                st.markdown(
-                    f"<div class='card'><b>{name} ({sym})</b><br>"
-                    f"💰 ${row['current_price']:.4f} | 24h Δ {row['price_change_percentage_24h']:.2f}%<br>"
-                    f"🧪 RSI(14): {rsi_val:.1f} | 📈 15m Δ {mom_15:+.2f}%</div>",
-                    unsafe_allow_html=True
-                )
+        st.markdown(
+            f"""
+            <div class='card'>
+                <b>{row['name'].capitalize()}</b><br>
+                <p style='color:#00e6b8;'>🔮 {ai_summary}</p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
             except Exception as e:
                 st.warning(f"⚠️ Data fetch failed for {name}: {e}")
 
