@@ -2,11 +2,11 @@ import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from pathlib import Path
 import json
-from datetime import datetime, timedelta
-import os, requests, numpy as np, httpx
-import plotly.graph_objects as go
+from datetime import datetime
+import os, requests, httpx, numpy as np
 from openai import OpenAI
 
 # --- Page Config ---
@@ -17,7 +17,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# --- Futuristic Theme ---
+# --- Theme ---
 st.markdown("""
 <style>
 body {
@@ -66,31 +66,30 @@ if summary_path.exists():
 
     st.markdown(f"🏆 **Top Performer:** `{top_name.capitalize()}` — **{top_score:.3f}**")
 
-    # --- Horizontal domain cards ---
+    # --- Domain Cards ---
     st.markdown("### 🧩 Domain Performance Overview")
     cols = st.columns(len(df_sorted))
     for i, row in df_sorted.iterrows():
-        style = "card" + (" highlight" if row["name"] == top_name else "")
+        highlight = " highlight" if row["name"] == top_name else ""
         with cols[i]:
             st.markdown(
-                f"<div class='{style}'><h3>{row['name'].capitalize()}</h3>"
+                f"<div class='card{highlight}'><h3>{row['name'].capitalize()}</h3>"
                 f"<h2 style='color:#f7e28f;'>Score: {row['score']:.3f}</h2>"
                 f"<p style='font-size:0.9em;color:#bfbfbf;'>{row['summary'][:100]}...</p></div>",
                 unsafe_allow_html=True
             )
 
-    # --- Bar chart ---
+    # --- Domain Bar Chart ---
     st.markdown("### 📊 Domain Scores Overview")
     fig = px.bar(
-        df_sorted,
-        y="name", x="score",
-        orientation="h",
-        color="score",
-        color_continuous_scale=["#b8860b", "#d4af37", "#00e6b8"],
-        text_auto=".3f",
-        title="Performance Across Domains"
+        df_sorted, y="name", x="score", orientation="h",
+        color="score", color_continuous_scale=["#b8860b", "#d4af37", "#00e6b8"],
+        text_auto=".3f", title="Performance Across Domains"
     )
-    fig.update_layout(plot_bgcolor="#0a0a0f", paper_bgcolor="#0a0a0f", font=dict(color="#e0e0e0"))
+    fig.update_layout(
+        plot_bgcolor="#0a0a0f", paper_bgcolor="#0a0a0f",
+        font=dict(color="#e0e0e0")
+    )
     st.plotly_chart(fig, use_container_width=True)
 
 # --- Historical Chart ---
@@ -105,14 +104,19 @@ if hist_path.exists():
     domain_choice = st.selectbox("Select domain:", hist_df["domain"].unique())
     filtered = hist_df[hist_df["domain"] == domain_choice].sort_values("timestamp")
 
-    fig_hist = px.line(filtered, x="timestamp", y="score",
-                       title=f"{domain_choice.capitalize()} — Score Trend",
-                       markers=True, line_shape="spline",
-                       color_discrete_sequence=["#00e6b8"])
-    fig_hist.update_layout(plot_bgcolor="#0a0a0f", paper_bgcolor="#0a0a0f", font=dict(color="#e0e0e0"))
+    fig_hist = px.line(
+        filtered, x="timestamp", y="score",
+        title=f"{domain_choice.capitalize()} — Score Trend",
+        markers=True, line_shape="spline",
+        color_discrete_sequence=["#00e6b8"]
+    )
+    fig_hist.update_layout(
+        plot_bgcolor="#0a0a0f", paper_bgcolor="#0a0a0f",
+        font=dict(color="#e0e0e0")
+    )
     st.plotly_chart(fig_hist, use_container_width=True)
 
-# --- Dynamic Bitcoin Range Chart ---
+# --- Dynamic BTC Chart ---
 st.markdown("### 💹 Bitcoin Trend (Dynamic Range)")
 ranges = {
     "30 Days": "30", "7 Days": "7", "1 Day": "1",
@@ -121,6 +125,7 @@ ranges = {
     "5 Minutes": "0.0034", "1 Minute": "0.0007"
 }
 choice = st.selectbox("Select range:", list(ranges.keys()), index=1)
+
 try:
     url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart"
     params = {"vs_currency": "usd", "days": ranges[choice]}
@@ -131,13 +136,16 @@ try:
         fig_btc = px.line(df_btc, x="date", y="price",
                           title=f"Bitcoin Price (USD, {choice})",
                           line_shape="spline", markers=True)
-        fig_btc.update_layout(plot_bgcolor="#0a0a0f", paper_bgcolor="#0a0a0f", font=dict(color="#e0e0e0"))
+        fig_btc.update_layout(
+            plot_bgcolor="#0a0a0f", paper_bgcolor="#0a0a0f",
+            font=dict(color="#e0e0e0")
+        )
         st.plotly_chart(fig_btc, use_container_width=True)
 except Exception as e:
     st.warning(f"⚠️ BTC chart unavailable: {e}")
 
-# --- Force Display Detector ---
-st.markdown("### 🚨 Volume & Momentum Detector (Top 100 Coins — Force Display)")
+# --- Volume & Momentum Detector ---
+st.markdown("### 🚨 Volume & Momentum Detector (Top 100 Coins)")
 force_show = ["bitcoin", "ethereum", "solana"]
 
 try:
@@ -151,40 +159,29 @@ try:
     }
 
     response = requests.get(url, params=params, timeout=25)
-
     if response.status_code != 200:
         raise ValueError(f"CoinGecko API returned {response.status_code}")
 
     markets = response.json()
-
-    # Validate API response
-    if not isinstance(markets, list) or len(markets) == 0:
+    if not isinstance(markets, list) or not markets:
         raise ValueError("Empty or invalid CoinGecko response")
 
-    # Extract fields safely
-    first = markets[0]
-    expected_keys = {"id", "symbol", "name", "total_volume", "current_price", "price_change_percentage_24h"}
-    missing = expected_keys - set(first.keys())
-    if missing:
-        st.warning(f"⚠️ Missing fields from API: {missing}. Will use fallback parsing.")
-
     df = pd.DataFrame(markets)
-
-    # Keep only existing valid columns
-    cols = [c for c in ["id", "symbol", "name", "total_volume", "current_price", "price_change_percentage_24h"] if c in df.columns]
-    df = df[cols]
+    valid_cols = [c for c in ["id", "symbol", "name", "total_volume", "current_price", "price_change_percentage_24h"] if c in df.columns]
+    df = df[valid_cols]
 
     if df.empty:
-        st.warning("⚠️ CoinGecko returned no usable data (rate limit or invalid response). Try again soon.")
+        st.warning("⚠️ No valid data returned from CoinGecko.")
     else:
-        st.success(f"💹 Loaded {len(df)} coins successfully from CoinGecko")
+        st.success(f"💹 Loaded {len(df)} coins successfully from CoinGecko.")
 
-        # Force-show BTC, ETH, SOL
+        # Display BTC, ETH, SOL mini-charts
         df_force = df[df["id"].isin(force_show)]
         for _, row in df_force.iterrows():
             mc_url = f"https://api.coingecko.com/api/v3/coins/{row['id']}/market_chart"
             mc_params = {"vs_currency": "usd", "days": "1"}
             mc = requests.get(mc_url, params=mc_params, timeout=25).json()
+
             prices = pd.DataFrame(mc.get("prices", []), columns=["ts", "price"])
             volumes = pd.DataFrame(mc.get("total_volumes", []), columns=["ts", "volume"])
             prices["dt"] = pd.to_datetime(prices["ts"], unit="ms")
@@ -192,15 +189,11 @@ try:
 
             if len(prices) > 5 and len(volumes) > 5:
                 fig = go.Figure()
-                fig.add_trace(go.Bar(
-                    x=volumes["dt"], y=volumes["volume"],
-                    name="Volume", marker_color="#00e6b8", yaxis="y1"
-                ))
-                fig.add_trace(go.Scatter(
-                    x=prices["dt"], y=prices["price"],
-                    mode="lines", line=dict(color="#d4af37", width=2),
-                    name="Price (USD)", yaxis="y2"
-                ))
+                fig.add_trace(go.Bar(x=volumes["dt"], y=volumes["volume"],
+                                     name="Volume", marker_color="#00e6b8", yaxis="y1"))
+                fig.add_trace(go.Scatter(x=prices["dt"], y=prices["price"],
+                                         mode="lines", line=dict(color="#d4af37", width=2),
+                                         name="Price (USD)", yaxis="y2"))
                 fig.update_layout(
                     title=f"{row['name']} ({row['symbol'].upper()}) — 30m Volume & Price",
                     barmode="overlay", height=180,
@@ -211,34 +204,6 @@ try:
                     yaxis2=dict(title="Price", overlaying="y", side="right")
                 )
                 st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.info(f"ℹ️ Not enough data for {row['name']}.")
-except Exception as e:
-    st.warning(f"⚠️ Detector unavailable: {e}")
-
-
-    df_force = df[df["id"].isin(force_show)]
-    for _, row in df_force.iterrows():
-        mc_url = f"https://api.coingecko.com/api/v3/coins/{row['id']}/market_chart"
-        mc_params = {"vs_currency": "usd", "days": "1"}
-        mc = requests.get(mc_url, params=mc_params, timeout=25).json()
-        prices = pd.DataFrame(mc["prices"], columns=["ts", "price"])
-        volumes = pd.DataFrame(mc["total_volumes"], columns=["ts", "volume"])
-        prices["dt"] = pd.to_datetime(prices["ts"], unit="ms")
-        volumes["dt"] = pd.to_datetime(volumes["ts"], unit="ms")
-
-        fig = go.Figure()
-        fig.add_trace(go.Bar(x=volumes["dt"], y=volumes["volume"], name="Volume", marker_color="#00e6b8", yaxis="y1"))
-        fig.add_trace(go.Scatter(x=prices["dt"], y=prices["price"], mode="lines", line=dict(color="#d4af37", width=2),
-                                 name="Price (USD)", yaxis="y2"))
-        fig.update_layout(
-            title=f"{row['name']} ({row['symbol'].upper()}) — 30m Volume & Price",
-            barmode="overlay", height=180, paper_bgcolor="#0a0a0f",
-            plot_bgcolor="#0a0a0f", font=dict(color="#e0e0e0", size=10),
-            yaxis=dict(title="Volume"), yaxis2=dict(title="Price", overlaying="y", side="right")
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
 except Exception as e:
     st.warning(f"⚠️ Detector unavailable: {e}")
 
