@@ -1,0 +1,38 @@
+[
+  {
+    "timestamp": "2025-11-02T22:40:06.670815",
+    "domain": "sports",
+    "score": 0.5,
+    "signal": "hold"
+  },
+  {
+    "timestamp": "2025-11-02T22:40:06.670828",
+    "domain": "stocks",
+    "score": 0.261,
+    "signal": "sell"
+  },
+  {
+    "timestamp": "2025-11-02T22:40:06.670834",
+    "domain": "forex",
+    "score": 0.5,
+    "signal": "sell"
+  },
+  {
+    "timestamp": "2025-11-02T22:40:06.670838",
+    "domain": "crypto",
+    "score": 0.463,
+    "signal": "hold"
+  },
+  {
+    "timestamp": "2025-11-02T22:40:06.670841",
+    "domain": "social",
+    "score": 0.5,
+    "signal": "buy"
+  },
+  {
+    "timestamp": "2025-11-02T22:40:06.670845",
+    "domain": "music",
+    "score": 0.5,
+    "signal": "buy"
+  }
+]
