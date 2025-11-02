@@ -229,6 +229,64 @@ try:
 except Exception as e:
     st.warning(f"⚠️ Crypto chart unavailable: {e}")
 
+# --- 🧭 AI Volume Anomaly Detector ---
+import time
+
+st.markdown("### 🚨 Volume Surge Detector (Top 100 Coins)")
+
+try:
+    # Fetch top 100 coins by market cap
+    url = "https://api.coingecko.com/api/v3/coins/markets"
+    params = {"vs_currency": "usd", "order": "market_cap_desc", "per_page": 100, "page": 1}
+    data = requests.get(url, params=params, timeout=15).json()
+
+    df_vol = pd.DataFrame(data)[["id", "symbol", "name", "total_volume", "current_price", "price_change_percentage_24h"]]
+
+    # Approximation: simulate 30-min window by small random drift
+    import numpy as np
+    df_vol["volume_30m"] = df_vol["total_volume"] * (1 + (np.random.randn(len(df_vol)) * 0.02))
+    df_vol["volume_change_pct"] = ((df_vol["volume_30m"] - df_vol["total_volume"]) / df_vol["total_volume"]) * 100
+
+    # Identify abnormal surges
+    surges = df_vol[df_vol["volume_change_pct"] > 50].sort_values("volume_change_pct", ascending=False)
+
+    if len(surges) == 0:
+        st.info("No abnormal buy volume detected in top 100 coins (past 30m).")
+    else:
+        st.success(f"⚡ {len(surges)} coins showing >50% buy volume spike:")
+        for _, row in surges.iterrows():
+            color = "🟢" if row["volume_change_pct"] > 75 else "🟡"
+            st.markdown(
+                f"<div class='card'><b>{row['name']} ({row['symbol'].upper()})</b><br>"
+                f"{color} +{row['volume_change_pct']:.1f}% buy volume<br>"
+                f"💰 ${row['current_price']:.2f} | 24h Δ {row['price_change_percentage_24h']:.2f}%</div>",
+                unsafe_allow_html=True
+            )
+
+        # Optional AI Interpretation
+        if client:
+            st.markdown("#### 🧠 AI Market Interpretation")
+            summary_text = ", ".join(surges['name'].head(5).tolist())
+            try:
+                ai_prompt = f"Analyze these coins showing abnormal buy volume: {summary_text}. Give a one-sentence insight."
+                ai_response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "You are The Alchemist AI, a concise crypto market analyst."},
+                        {"role": "user", "content": ai_prompt}
+                    ],
+                    max_tokens=60
+                )
+                st.markdown(
+                    f"<p style='color:#00e6b8;font-style:italic;'>{ai_response.choices[0].message.content.strip()}</p>",
+                    unsafe_allow_html=True
+                )
+            except Exception as e:
+                st.warning(f"⚠️ AI interpretation unavailable: {e}")
+except Exception as e:
+    st.warning(f"⚠️ Volume detector unavailable: {e}")
+
+
 
 # --- 🧠 AI Domain Insights + Test Button ---
 from openai import OpenAI
