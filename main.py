@@ -7,6 +7,7 @@ from agents.social_agent import SocialAgent
 from agents.music_agent import MusicAgent
 import json
 from pathlib import Path
+from datetime import datetime
 
 def run_once():
     print("🚀 Running The Alchemist agents...\n")
@@ -22,14 +23,17 @@ def run_once():
 
     reports = {}
     for a in agents:
-        report = a.run()
-        reports[a.name] = report
-        print(f"✅ Wrote report for {a.name}: {report.get('summary','')[:80]}")
+        try:
+            report = a.run()
+            reports[a.name] = report
+            print(f"✅ Wrote report for {a.name}: {report.get('summary','')[:80]}")
+        except Exception as e:
+            print(f"⚠️ Error in {a.name}: {e}")
+            reports[a.name] = {"score": 0.0, "summary": f"Error: {e}"}
 
-    # Create final summary for dashboard
-    alch_summary = {
-        "generated_at": "2025-10-31T00:00:00Z",
-        "ranking": ["crypto", "stocks", "sports", "music", "social", "forex"],
+    # --- Create summary for dashboard ---
+    summary = {
+        "generated_at": datetime.utcnow().isoformat(),
         "details": [
             {
                 "name": name,
@@ -40,46 +44,50 @@ def run_once():
         ]
     }
 
-    # Save summary for dashboard
+    # Sort by score descending
+    summary["details"].sort(key=lambda x: x["score"], reverse=True)
+
+    # Save summary
     Path("data").mkdir(exist_ok=True)
     summary_path = Path("data/summary.json")
     with open(summary_path, "w") as f:
-        json.dump(alch_summary, f, indent=2)
+        json.dump(summary, f, indent=2)
+
     print(f"\n✅ Saved summary to {summary_path.resolve()}")
+    return summary
+
 
 if __name__ == "__main__":
-    run_once()
+    summary = run_once()
 
-# --- Save to historical timeline ---
-from datetime import datetime
-import json, os
-from pathlib import Path
+    # --- Historical tracking ---
+    history_file = Path("data/history.json")
 
-history_file = Path("data/history.json")
+    # Load existing history
+    if history_file.exists():
+        with open(history_file, "r") as f:
+            try:
+                history = json.load(f)
+            except json.JSONDecodeError:
+                history = []
+    else:
+        history = []
 
-# Load existing history if available
-if history_file.exists():
-    with open(history_file, "r") as f:
-        history = json.load(f)
-else:
-    history = []
+    # Append this run
+    timestamp = datetime.utcnow().isoformat()
+    for item in summary["details"]:
+        history.append({
+            "timestamp": timestamp,
+            "domain": item["name"],
+            "score": item["score"],
+            "sentiment": item.get("sentiment", "neutral")
+        })
 
-# Append new records from this run
-timestamp = datetime.utcnow().isoformat()
-for item in summary["details"]:
-    history.append({
-        "timestamp": timestamp,
-        "domain": item["name"],
-        "score": item["score"],
-        "sentiment": item.get("sentiment", "neutral")
-    })
+    # Keep last 500 records
+    history = history[-500:]
 
-# Keep only the last 500 records
-history = history[-500:]
+    with open(history_file, "w") as f:
+        json.dump(history, f, indent=2)
 
-# Save back to file
-with open(history_file, "w") as f:
-    json.dump(history, f, indent=2)
-
-print("🧠 Historical data updated —", len(history), "total records")
-
+    print(f"🧠 Historical data updated — {len(history)} total records")
+    print("✅ The Alchemist data pipeline completed successfully.")
