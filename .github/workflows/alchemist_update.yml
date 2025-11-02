@@ -21,6 +21,19 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: 📣 Notify Slack on update
+        if: success()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          MESSAGE="🧙‍♂️ The Alchemist has updated the data! \
+          \nTop performer: $(jq -r '.details | max_by(.score) | .name' data/summary.json) \
+          \nScore: $(jq -r '.details | max_by(.score) | .score' data/summary.json)"
+          echo "$MESSAGE"
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"$MESSAGE\"}" \
+            $SLACK_WEBHOOK_URL
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
