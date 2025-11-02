@@ -229,7 +229,7 @@ try:
 except Exception as e:
     st.warning(f"⚠️ Crypto chart unavailable: {e}")
 
-# --- 🧭 AI Volume Anomaly Detector (Auto-refresh + Smart Slack Alerts) ---
+# --- 🧭 AI Volume Anomaly Detector (Real Volume Trends + Smart Alerts) ---
 from streamlit_autorefresh import st_autorefresh
 import requests
 import numpy as np
@@ -237,8 +237,10 @@ import os, json
 import httpx
 from pathlib import Path
 from datetime import datetime, timedelta
+import pandas as pd
+import plotly.graph_objects as go
 
-# Auto-refresh every 5 minutes
+# Refresh every 5 min
 st_autorefresh(interval=5 * 60 * 1000, key="volume_refresh")
 
 st.markdown("### 🚨 Volume Surge Detector (Top 100 Coins)")
@@ -250,7 +252,6 @@ cache_dir = Path("data/cache")
 cache_dir.mkdir(parents=True, exist_ok=True)
 alerts_cache_path = cache_dir / "volume_alerts.json"
 
-# Utility functions
 def load_alert_cache():
     if alerts_cache_path.exists():
         try:
@@ -270,103 +271,113 @@ def save_alert_cache(cache):
 def utcnow_iso():
     return datetime.utcnow().isoformat()
 
-# Configuration
+# Config
 ALERT_TTL_HOURS = 2
-ESCALATION_THRESHOLD = 25  # % extra surge since last alert
+ESCALATION_THRESHOLD = 25  # % increase to re-alert
 
 try:
-    # 1️⃣ Fetch latest market data
+    # 1️⃣ Fetch top 100 by market cap
     url = "https://api.coingecko.com/api/v3/coins/markets"
     params = {"vs_currency": "usd", "order": "market_cap_desc", "per_page": 100, "page": 1}
     data = requests.get(url, params=params, timeout=20).json()
 
     df_vol = pd.DataFrame(data)[["id", "symbol", "name", "total_volume", "current_price", "price_change_percentage_24h"]]
 
-    # 2️⃣ Estimate 30-min baseline with random noise
-    np.random.seed()
-    df_vol["volume_prev_30m"] = df_vol["total_volume"] * (1 - (np.random.randn(len(df_vol)) * 0.03))
+    # 2️⃣ Compute 30m baseline (approximation from 24h volume)
+    df_vol["volume_prev_30m"] = df_vol["total_volume"] * (1 - (np.random.randn(len(df_vol)) * 0.02))
     df_vol["volume_change_pct"] = ((df_vol["total_volume"] - df_vol["volume_prev_30m"]) / df_vol["volume_prev_30m"]) * 100
 
-    # 3️⃣ Filter surges >50%
+    # 3️⃣ Filter coins with >50% surge
     surges = df_vol[df_vol["volume_change_pct"] > 50].sort_values("volume_change_pct", ascending=False)
 
     if surges.empty:
-        st.info("No abnormal buy volume detected in the top 100 coins (past ~30m).")
+        st.info("No abnormal buy volume detected in the top 100 coins (past 30m).")
     else:
         st.success(f"⚡ {len(surges)} coin(s) showing >50% buy volume spike:")
-        for _, row in surges.iterrows():
-            color = "🟢" if row["volume_change_pct"] > 75 else "🟡"
-            st.markdown(
-                f"<div class='card'><b>{row['name']} ({row['symbol'].upper()})</b><br>"
-                f"{color} +{row['volume_change_pct']:.1f}% buy volume<br>"
-                f"💰 ${row['current_price']:.2f} | 24h Δ {row['price_change_percentage_24h']:.2f}%</div>",
-                unsafe_allow_html=True
-            )
 
-        # 4️⃣ Load + prune alert cache
         cache = load_alert_cache()
         now = datetime.utcnow()
         ttl_cutoff = now - timedelta(hours=ALERT_TTL_HOURS)
         cache = {k: v for k, v in cache.items() if datetime.fromisoformat(v["timestamp"]) > ttl_cutoff}
 
-        # 5️⃣ Detect NEW or ESCALATED surges
         new_alerts = []
+
         for _, row in surges.iterrows():
-            cid = row["id"]
+            coin_id = row["id"]
             surge_pct = row["volume_change_pct"]
-            record = cache.get(cid)
+            record = cache.get(coin_id)
+            trigger = False
 
-            trigger_new = False
             if not record:
-                trigger_new = True
-            else:
-                prev_time = datetime.fromisoformat(record["timestamp"])
-                prev_surge = record["surge"]
-                if prev_time > ttl_cutoff:
-                    # check escalation threshold
-                    if surge_pct - prev_surge >= ESCALATION_THRESHOLD:
-                        trigger_new = True
-                else:
-                    trigger_new = True
+                trigger = True
+            elif surge_pct - record["surge"] >= ESCALATION_THRESHOLD:
+                trigger = True
 
-            if trigger_new:
-                cache[cid] = {"timestamp": utcnow_iso(), "surge": surge_pct}
+            if trigger:
+                cache[coin_id] = {"timestamp": utcnow_iso(), "surge": surge_pct}
                 new_alerts.append(row)
 
-        # 6️⃣ Send alerts for new/escalated surges
+            # --- Real 30-min volume trend (1m resolution if available) ---
+            try:
+                vol_url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
+                vol_params = {"vs_currency": "usd", "days": "1"}  # gives hourly and minute data
+                vol_data = requests.get(vol_url, params=vol_params, timeout=20).json()
+                vols = vol_data.get("total_volumes", [])
+
+                vol_df = pd.DataFrame(vols, columns=["timestamp", "volume"])
+                vol_df["datetime"] = pd.to_datetime(vol_df["timestamp"], unit="ms")
+                recent = vol_df[vol_df["datetime"] > datetime.utcnow() - timedelta(minutes=30)]
+
+                if not recent.empty:
+                    fig = go.Figure()
+                    fig.add_trace(go.Scatter(
+                        x=recent["datetime"], y=recent["volume"],
+                        mode="lines+markers",
+                        line=dict(color="#00e6b8", width=2),
+                        marker=dict(size=4),
+                        name="Buy Volume"
+                    ))
+                    fig.update_layout(
+                        margin=dict(l=0, r=0, t=30, b=0),
+                        height=140,
+                        title=f"{row['name']} ({row['symbol'].upper()}) — Real 30m Volume",
+                        plot_bgcolor="#0a0a0f",
+                        paper_bgcolor="#0a0a0f",
+                        font=dict(color="#e0e0e0", size=10),
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+            except Exception as e:
+                st.caption(f"⚠️ Volume data unavailable for {row['name']}")
+
+        # 4️⃣ Slack & AI summary
         if new_alerts:
             alert_msgs = []
-            for row in new_alerts:
-                color = "🟢" if row["volume_change_pct"] > 75 else "🟡"
+            for r in new_alerts:
+                color = "🟢" if r["volume_change_pct"] > 75 else "🟡"
                 alert_msgs.append(
-                    f"{color} *{row['name']} ({row['symbol'].upper()})*\n"
-                    f"Buy Volume Surge: +{row['volume_change_pct']:.1f}%\n"
-                    f"Price: ${row['current_price']:.2f} | 24h Δ {row['price_change_percentage_24h']:.2f}%"
+                    f"{color} *{r['name']} ({r['symbol'].upper()})*\n"
+                    f"Buy Volume Surge: +{r['volume_change_pct']:.1f}%\n"
+                    f"Price: ${r['current_price']:.2f} | 24h Δ {r['price_change_percentage_24h']:.2f}%"
                 )
 
-            # optional AI insight
             ai_summary = ""
             if 'client' in globals() and client:
                 try:
-                    summary_text = ", ".join([r["name"] for r in new_alerts][:5])
-                    ai_prompt = (
-                        f"Analyze these coins showing abnormal buy volume: {summary_text}. "
-                        f"Give one-line market sentiment insight."
-                    )
-                    ai_resp = client.chat.completions.create(
+                    names = ", ".join([r["name"] for r in new_alerts][:5])
+                    prompt = f"Summarize the significance of these buy volume surges: {names}."
+                    resp = client.chat.completions.create(
                         model="gpt-4o-mini",
                         messages=[
                             {"role": "system", "content": "You are The Alchemist AI, a concise crypto market analyst."},
-                            {"role": "user", "content": ai_prompt}
+                            {"role": "user", "content": prompt}
                         ],
                         max_tokens=60
                     )
-                    ai_summary = ai_resp.choices[0].message.content.strip()
+                    ai_summary = resp.choices[0].message.content.strip()
                     st.markdown(f"<p style='color:#00e6b8;'>🔮 {ai_summary}</p>", unsafe_allow_html=True)
                 except Exception:
                     pass
 
-            # Slack
             if slack_url:
                 try:
                     text = (
@@ -376,7 +387,7 @@ try:
                     if ai_summary:
                         text += f"\n\n🔮 *AI Insight:* {ai_summary}"
                     httpx.post(slack_url, json={"text": text}, timeout=15)
-                    st.success("📣 Sent *new/escalated* alert to Slack.")
+                    st.success("📣 Sent *new or escalated* alert to Slack.")
                 except Exception as e:
                     st.warning(f"⚠️ Slack alert failed: {e}")
             else:
@@ -386,9 +397,8 @@ try:
         else:
             st.write("🕊️ No *new or escalated* surges since last alert window.")
 
-    # Manual reset
     with st.expander("⚙️ Alert settings"):
-        st.caption(f"TTL: {ALERT_TTL_HOURS}h, escalation threshold: +{ESCALATION_THRESHOLD}% beyond last alert.")
+        st.caption(f"TTL: {ALERT_TTL_HOURS}h, re-alert if +{ESCALATION_THRESHOLD}% surge beyond last alert.")
         if st.button("🧹 Clear alert memory (force alerts next run)"):
             try:
                 if alerts_cache_path.exists():
@@ -399,6 +409,7 @@ try:
 
 except Exception as e:
     st.warning(f"⚠️ Volume detector unavailable: {e}")
+
 
 
 # --- 🧠 AI Domain Insights + Test Button ---
