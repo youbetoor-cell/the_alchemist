@@ -18,6 +18,32 @@ import httpx
 from openai import OpenAI
 
 # ============================================================
+# --- ALERT HELPERS (Telegram & Slack) ---
+# ============================================================
+
+def send_telegram_alert(message):
+    token = os.getenv("TELEGRAM_TOKEN", "")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
+    if not token or not chat_id:
+        return
+    try:
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = {"chat_id": chat_id, "text": message, "parse_mode": "HTML"}
+        requests.post(url, data=payload, timeout=5)
+    except Exception as e:
+        print(f"⚠️ Telegram alert failed: {e}")
+
+def send_slack_alert(message):
+    webhook = os.getenv("SLACK_WEBHOOK", "")
+    if not webhook:
+        return
+    try:
+        requests.post(webhook, json={"text": message}, timeout=5)
+    except Exception as e:
+        print(f"⚠️ Slack alert failed: {e}")
+
+
+# ============================================================
 # --- PAGE SETUP ---
 # ============================================================
 
@@ -276,6 +302,16 @@ if not df.empty:
                         plot_bgcolor="#0a0a0f", paper_bgcolor="#0a0a0f"
                     )
                     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+if chg_1h > 2.5:
+    msg = f"🔥 {domain} surged +{chg_1h:.2f}% in the past hour!"
+    send_telegram_alert(msg)
+    send_slack_alert(msg)
+elif chg_1h < -2.5:
+    msg = f"⚠️ {domain} dropped {chg_1h:.2f}% in the past hour!"
+    send_telegram_alert(msg)
+    send_slack_alert(msg)
+
 
                     if not anomalies.empty:
                         st.warning(f"⚠️ {len(anomalies)} anomalies detected (Z>{threshold})")
