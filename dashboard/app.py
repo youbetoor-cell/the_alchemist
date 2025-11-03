@@ -52,6 +52,20 @@ h1, h2, h3 {
 .metric-up { color: #00e676; }
 .metric-down { color: #ff4d4d; }
 .metric-neutral { color: #cccccc; }
+.alert-up {
+    background: rgba(0,230,118,0.15);
+    color: #00e676;
+    padding: 0.4em 0.7em;
+    border-radius: 10px;
+    font-weight: 500;
+}
+.alert-down {
+    background: rgba(255,77,77,0.15);
+    color: #ff4d4d;
+    padding: 0.4em 0.7em;
+    border-radius: 10px;
+    font-weight: 500;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -240,33 +254,34 @@ if summary_path.exists():
 
                 st.markdown(f"<p style='font-size:0.9em;color:#bfbfbf;'>{metrics_text}</p>", unsafe_allow_html=True)
 
-            # --- Right side: Sparkline + Δ metrics ---
+            # --- Right side: Sparkline + Δ metrics + alerts ---
             with col2:
                 try:
                     if "crypto" in domain.lower():
                         df_trend = get_btc_data() or mock_series(1)
-                        latest = df_trend["price"].iloc[-1]
-                        hour_ago = df_trend["price"].iloc[-min(len(df_trend), 12)]
-                        chg_1h = ((latest - hour_ago) / hour_ago) * 100
-                        chg_24h = np.random.uniform(-2, 2)
-                        vol_30m = np.random.uniform(0.5, 2.5)
-                        subtext = f"Δ1h <span class='{'metric-up' if chg_1h>0 else 'metric-down' if chg_1h<0 else 'metric-neutral'}'>{chg_1h:+.2f}%</span> | Δ24h <span class='{'metric-up' if chg_24h>0 else 'metric-down' if chg_24h<0 else 'metric-neutral'}'>{chg_24h:+.2f}%</span> | Vol30m {vol_30m:.1f}B"
-
                     elif "stocks" in domain.lower():
                         df_trend = get_aapl_data() or mock_series(2)
-                        latest = df_trend["price"].iloc[-1]
-                        hour_ago = df_trend["price"].iloc[-4] if len(df_trend) > 4 else df_trend["price"].iloc[0]
-                        chg_1h = ((latest - hour_ago) / hour_ago) * 100
-                        chg_24h = np.random.uniform(-1.5, 1.5)
-                        vol_30m = np.random.uniform(0.2, 0.9)
-                        subtext = f"Δ1h <span class='{'metric-up' if chg_1h>0 else 'metric-down' if chg_1h<0 else 'metric-neutral'}'>{chg_1h:+.2f}%</span> | Δ24h <span class='{'metric-up' if chg_24h>0 else 'metric-down' if chg_24h<0 else 'metric-neutral'}'>{chg_24h:+.2f}%</span> | Vol30m {vol_30m:.1f}M"
-
                     else:
                         df_trend = mock_series(3)
-                        chg_1h = np.random.uniform(-0.5, 0.5)
-                        chg_24h = np.random.uniform(-1, 1)
-                        subtext = f"Δ1h <span class='{'metric-up' if chg_1h>0 else 'metric-down' if chg_1h<0 else 'metric-neutral'}'>{chg_1h:+.2f}%</span> | Δ24h <span class='{'metric-up' if chg_24h>0 else 'metric-down' if chg_24h<0 else 'metric-neutral'}'>{chg_24h:+.2f}%</span>"
 
+                    latest = df_trend["price"].iloc[-1]
+                    hour_ago = df_trend["price"].iloc[-min(len(df_trend), 12)]
+                    chg_1h = ((latest - hour_ago) / hour_ago) * 100
+                    chg_24h = np.random.uniform(-2, 2)
+                    vol_30m = np.random.uniform(0.2, 2.5)
+
+                    color_1h = "metric-up" if chg_1h > 0 else "metric-down" if chg_1h < 0 else "metric-neutral"
+                    color_24h = "metric-up" if chg_24h > 0 else "metric-down" if chg_24h < 0 else "metric-neutral"
+
+                    subtext = f"Δ1h <span class='{color_1h}'>{chg_1h:+.2f}%</span> | Δ24h <span class='{color_24h}'>{chg_24h:+.2f}%</span> | Vol30m {vol_30m:.1f}B"
+
+                    # --- Alerts ---
+                    if chg_1h > 2.5:
+                        st.markdown(f"<div class='alert-up'>🔥 {domain} +{chg_1h:.2f}% surge in 1h!</div>", unsafe_allow_html=True)
+                    elif chg_1h < -2.5:
+                        st.markdown(f"<div class='alert-down'>⚠️ {domain} -{abs(chg_1h):.2f}% drop in 1h!</div>", unsafe_allow_html=True)
+
+                    # --- Sparkline Chart ---
                     fig = go.Figure()
                     fig.add_trace(go.Scatter(
                         x=df_trend["dt"], y=df_trend["price"],
@@ -285,3 +300,66 @@ if summary_path.exists():
                     )
                 except Exception as e:
                     st.warning(f"⚠️ Sparkline unavailable: {e}")
+# ============================================================
+# --- CROSS-DOMAIN BLENDING (AI or fallback) ---
+# ============================================================
+st.markdown("## 🔗 Cross-Domain Insight")
+
+def _heuristic_cross_domain(df_rows: pd.DataFrame) -> str:
+    # Simple heuristic if no AI key or request fails
+    try:
+        crypto = df_rows[df_rows["name"] == "crypto"]["score"].values[0]
+        social = df_rows[df_rows["name"] == "social"]["score"].values[0]
+        stocks = df_rows[df_rows["name"] == "stocks"]["score"].values[0]
+        signals = []
+        if crypto > 0.6 and social > 0.6:
+            signals.append("Crypto uptrend aligns with stronger social signal.")
+        if stocks > 0.6 and crypto > 0.6:
+            signals.append("Equities and crypto showing synchronous strength.")
+        if not signals:
+            signals.append("Signals mixed; watch for confirmation from social momentum.")
+        return " ".join(signals)
+    except Exception:
+        return "Insufficient signals; awaiting more data for a confident cross-domain read."
+
+insight_text = None
+if summary_path.exists():
+    try:
+        if client:
+            # Build compact context for the model
+            compact = "\n".join(
+                f"{row['name']}: score={row['score']:.3f}, summary={row['summary'][:140]}"
+                for _, row in df_sorted.iterrows()
+            )
+            resp = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are The Alchemist AI. Explain cross-domain correlations succinctly with 1–2 sentences."},
+                    {"role": "user", "content": f"Given domain signals:\n{compact}\nFind any correlations (e.g., crypto ↔ social sentiment, equities ↔ crypto)."}
+                ],
+                max_tokens=120,
+            )
+            insight_text = resp.choices[0].message.content.strip()
+        else:
+            insight_text = _heuristic_cross_domain(df_sorted)
+    except Exception:
+        insight_text = _heuristic_cross_domain(df_sorted)
+
+st.markdown(
+    f"<div class='card' style='text-align:left'><b>Inference:</b><br>{insight_text}</div>",
+    unsafe_allow_html=True
+)
+
+# ============================================================
+# --- PHASE 3: Anomaly Detector Hook (placeholder UI) ---
+# ============================================================
+st.markdown("## 🧭 Anomaly Watch (Phase 3 Preview)")
+st.markdown(
+    "<div class='card' style='text-align:left'>"
+    "<b>Status:</b> Ready to ingest anomaly events from detectors "
+    "(volume spikes, unusual RSI, cross-domain divergences)."
+    "<br>When events arrive, they’ll render here with severity and links to charts."
+    "</div>",
+    unsafe_allow_html=True
+)
+

@@ -8,6 +8,79 @@ from agents.music_agent import MusicAgent
 import json
 from pathlib import Path
 from datetime import datetime
+
+def run_once():
+    print("🚀 Running The Alchemist agents...\n")
+
+    agents = [
+        SportsAgent(),
+        StocksAgent(),
+        ForexAgent(),
+        CryptoAgent(),
+        SocialAgent(),
+        MusicAgent(),
+    ]
+
+    reports = {}
+    for a in agents:
+        report = a.run()
+        reports[a.name] = report
+        print(f"✅ Wrote report for {a.name}: {report.get('summary','')[:80]}")
+
+    # Build dashboard summary
+    details = [
+        {"name": name, "score": rep.get("score", 0.5), "summary": rep.get("summary", "")}
+        for name, rep in reports.items()
+    ]
+    # sort just to be safe for ranking
+    ranked = sorted(details, key=lambda x: x["score"], reverse=True)
+
+    alch_summary = {
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "ranking": [d["name"] for d in ranked],
+        "details": ranked
+    }
+
+    Path("data").mkdir(exist_ok=True)
+    with open("data/summary.json", "w") as f:
+        json.dump(alch_summary, f, indent=2)
+    print("✅ Saved summary to data/summary.json")
+
+    # --- Timeline memory append ---
+    history_file = Path("data/history.json")
+    history = []
+    if history_file.exists():
+        try:
+            with open(history_file, "r") as f:
+                history = json.load(f)
+        except Exception:
+            history = []
+
+    ts = datetime.utcnow().isoformat() + "Z"
+    for d in ranked:
+        history.append({
+            "timestamp": ts,
+            "domain": d["name"],
+            "score": d["score"],
+        })
+
+    history = history[-1000:]  # cap
+    with open(history_file, "w") as f:
+        json.dump(history, f, indent=2)
+    print(f"🧠 Historical data updated — {len(history)} records")
+
+if __name__ == "__main__":
+    run_once()
+from the_alchemist import TheAlchemist
+from agents.sports_agent import SportsAgent
+from agents.stocks_agent import StocksAgent
+from agents.forex_agent import ForexAgent
+from agents.crypto_agent import CryptoAgent
+from agents.social_agent import SocialAgent
+from agents.music_agent import MusicAgent
+import json
+from pathlib import Path
+from datetime import datetime
 import random
 
 def run_once():

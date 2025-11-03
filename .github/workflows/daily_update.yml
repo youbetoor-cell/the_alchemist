@@ -1,0 +1,52 @@
+name: 🔁 Daily Alchemist Update
+
+on:
+  schedule:
+    - cron: "0 9 * * *" # 09:00 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run agents
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python main.py
+
+      - name: Commit outputs
+        run: |
+          git config user.name "The Alchemist Bot"
+          git config user.email "bot@thealchemist.ai"
+          git add data/summary.json data/history.json data/reports/*.json || true
+          git commit -m "Auto-update $(date -u +'%Y-%m-%d %H:%M:%S') UTC" || echo "No changes"
+          git push || echo "No push"
+
+      - name: Slack notify (optional)
+        if: success()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            TOP=$(jq -r '.details | max_by(.score) | .name' data/summary.json)
+            SCORE=$(jq -r '.details | max_by(.score) | .score' data/summary.json)
+            MSG="🧙‍♂️ Alchemist updated — Top: *$TOP* (score $SCORE)"
+            curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"$MSG\"}" "$SLACK_WEBHOOK_URL"
+          fi
+
