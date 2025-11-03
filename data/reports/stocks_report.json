@@ -1,5 +1,9 @@
 {
-  "error": "single positional indexer is out-of-bounds",
-  "summary": "\u274c Failed to fetch stock data: single positional indexer is out-of-bounds",
-  "score": 0.5
+  "generated_at": "2025-11-03T18:48:11.822659Z",
+  "ticker": "AAPL",
+  "price_usd": 268.3900146484375,
+  "change_1d": -0.7506836323116156,
+  "signal": "sell",
+  "summary": "AAPL closed at $268.39 (-0.75% today) \u2014 signal=sell",
+  "score": 0.425
 }
