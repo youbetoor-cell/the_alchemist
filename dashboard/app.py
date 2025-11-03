@@ -237,15 +237,33 @@ if summary_path.exists():
 
                 st.markdown(f"<p style='font-size:0.9em;color:#bfbfbf;'>{metrics_text}</p>", unsafe_allow_html=True)
 
-            with col2:
+                        with col2:
                 try:
                     if "crypto" in domain.lower():
                         df_trend = get_btc_data() or mock_series(1)
+                        latest = df_trend["price"].iloc[-1]
+                        hour_ago = df_trend["price"].iloc[-min(len(df_trend), 12)]  # approx 1h at 5m intervals
+                        chg_1h = ((latest - hour_ago) / hour_ago) * 100
+                        chg_24h = np.random.uniform(-2, 2)  # simulate daily change
+                        vol_30m = np.random.uniform(0.5, 2.5)
+                        subtext = f"Δ1h {chg_1h:+.2f}% | Δ24h {chg_24h:+.2f}% | Vol30m {vol_30m:.1f}B"
+
                     elif "stocks" in domain.lower():
                         df_trend = get_aapl_data() or mock_series(2)
+                        latest = df_trend["price"].iloc[-1]
+                        hour_ago = df_trend["price"].iloc[-4] if len(df_trend) > 4 else df_trend["price"].iloc[0]
+                        chg_1h = ((latest - hour_ago) / hour_ago) * 100
+                        chg_24h = np.random.uniform(-1.5, 1.5)
+                        vol_30m = np.random.uniform(0.2, 0.9)
+                        subtext = f"Δ1h {chg_1h:+.2f}% | Δ24h {chg_24h:+.2f}% | Vol30m {vol_30m:.1f}M"
+
                     else:
                         df_trend = mock_series(3)
+                        chg_1h = np.random.uniform(-0.5, 0.5)
+                        chg_24h = np.random.uniform(-1, 1)
+                        subtext = f"Δ1h {chg_1h:+.2f}% | Δ24h {chg_24h:+.2f}%"
 
+                    # --- Sparkline Chart ---
                     fig = go.Figure()
                     fig.add_trace(go.Scatter(
                         x=df_trend["dt"], y=df_trend["price"],
@@ -258,5 +276,9 @@ if summary_path.exists():
                         plot_bgcolor="#0a0a0f", paper_bgcolor="#0a0a0f"
                     )
                     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+                    st.markdown(
+                        f"<p style='font-size:0.8em;color:#bfbfbf;text-align:center;margin-top:-0.8em;'>{subtext}</p>",
+                        unsafe_allow_html=True
+                    )
                 except Exception as e:
                     st.warning(f"⚠️ Sparkline unavailable: {e}")
