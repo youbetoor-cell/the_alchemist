@@ -390,3 +390,45 @@ if anom_file.exists():
 else:
     st.info("📭 No historical data yet — run once to build history.")
 
+# ============================================================
+# --- PHASE 3 : Anomaly Watch (Live Feed + AI Narration) ---
+# ============================================================
+st.markdown("## 🧭 Anomaly Watch")
+
+anom_file = Path("data/history.json")
+if anom_file.exists():
+    try:
+        from detectors.anomaly_detector import detect_anomalies
+        anomalies = detect_anomalies(window=20, threshold=2.0)
+
+        if anomalies:
+            # Try to narrate with GPT
+            narrated = []
+            try:
+                from detectors.ai_narrator import narrate_anomalies
+                narrated = narrate_anomalies(anomalies, history_path="data/history.json")
+            except Exception as e:
+                narrated = []
+                st.warning(f"⚠️ Narrator module error: {e}")
+
+            # Display
+            for a in (narrated or anomalies):
+                direction = a.get("direction", "surge")
+                color = "#00e676" if direction == "surge" else "#ff4d4d"
+                narration = a.get("narration", "—")
+                st.markdown(
+                    f"<div class='card' style='border-left:4px solid {color};text-align:left'>"
+                    f"<b>{a['domain'].capitalize()}</b> — {direction.upper()} "
+                    f"(z={a['zscore']})<br>"
+                    f"Score: {a['score']:.2f} | Detected at {a['timestamp']}<br>"
+                    f"<span style='color:#bfbfbf'>🔎 {narration}</span>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+        else:
+            st.info("✅ No active anomalies detected.")
+    except Exception as e:
+        st.warning(f"⚠️ Anomaly module error: {e}")
+else:
+    st.info("📭 No historical data yet — run once to build history.")
+
