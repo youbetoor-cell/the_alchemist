@@ -49,6 +49,9 @@ h1, h2, h3 {
     text-align: center;
     box-shadow: 0 0 25px rgba(255,215,0,0.05);
 }
+.metric-up { color: #00e676; }
+.metric-down { color: #ff4d4d; }
+.metric-neutral { color: #cccccc; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -114,10 +117,8 @@ else:
     st.info("💤 No API key — AI summaries will be skipped.")
 
 # ============================================================
-# --- INTELLIGENCE FEED ---
+# --- DATA HELPERS ---
 # ============================================================
-
-st.markdown("## 💡 Unified Intelligence Feed")
 
 @st.cache_data(ttl=300)
 def get_btc_data():
@@ -149,8 +150,10 @@ def mock_series(seed=0):
     return pd.DataFrame({"dt": times, "price": vals})
 
 # ============================================================
-# --- BUILD FEED ---
+# --- INTELLIGENCE FEED ---
 # ============================================================
+
+st.markdown("## 💡 Unified Intelligence Feed")
 
 if summary_path.exists():
     for _, row in df_sorted.iterrows():
@@ -237,17 +240,17 @@ if summary_path.exists():
 
                 st.markdown(f"<p style='font-size:0.9em;color:#bfbfbf;'>{metrics_text}</p>", unsafe_allow_html=True)
 
-            # --- Right side: Sparkline + metrics ---
+            # --- Right side: Sparkline + Δ metrics ---
             with col2:
                 try:
                     if "crypto" in domain.lower():
                         df_trend = get_btc_data() or mock_series(1)
                         latest = df_trend["price"].iloc[-1]
-                        hour_ago = df_trend["price"].iloc[-min(len(df_trend), 12)]  # approx 1h at 5m intervals
+                        hour_ago = df_trend["price"].iloc[-min(len(df_trend), 12)]
                         chg_1h = ((latest - hour_ago) / hour_ago) * 100
                         chg_24h = np.random.uniform(-2, 2)
                         vol_30m = np.random.uniform(0.5, 2.5)
-                        subtext = f"Δ1h {chg_1h:+.2f}% | Δ24h {chg_24h:+.2f}% | Vol30m {vol_30m:.1f}B"
+                        subtext = f"Δ1h <span class='{'metric-up' if chg_1h>0 else 'metric-down' if chg_1h<0 else 'metric-neutral'}'>{chg_1h:+.2f}%</span> | Δ24h <span class='{'metric-up' if chg_24h>0 else 'metric-down' if chg_24h<0 else 'metric-neutral'}'>{chg_24h:+.2f}%</span> | Vol30m {vol_30m:.1f}B"
 
                     elif "stocks" in domain.lower():
                         df_trend = get_aapl_data() or mock_series(2)
@@ -256,13 +259,13 @@ if summary_path.exists():
                         chg_1h = ((latest - hour_ago) / hour_ago) * 100
                         chg_24h = np.random.uniform(-1.5, 1.5)
                         vol_30m = np.random.uniform(0.2, 0.9)
-                        subtext = f"Δ1h {chg_1h:+.2f}% | Δ24h {chg_24h:+.2f}% | Vol30m {vol_30m:.1f}M"
+                        subtext = f"Δ1h <span class='{'metric-up' if chg_1h>0 else 'metric-down' if chg_1h<0 else 'metric-neutral'}'>{chg_1h:+.2f}%</span> | Δ24h <span class='{'metric-up' if chg_24h>0 else 'metric-down' if chg_24h<0 else 'metric-neutral'}'>{chg_24h:+.2f}%</span> | Vol30m {vol_30m:.1f}M"
 
                     else:
                         df_trend = mock_series(3)
                         chg_1h = np.random.uniform(-0.5, 0.5)
                         chg_24h = np.random.uniform(-1, 1)
-                        subtext = f"Δ1h {chg_1h:+.2f}% | Δ24h {chg_24h:+.2f}%"
+                        subtext = f"Δ1h <span class='{'metric-up' if chg_1h>0 else 'metric-down' if chg_1h<0 else 'metric-neutral'}'>{chg_1h:+.2f}%</span> | Δ24h <span class='{'metric-up' if chg_24h>0 else 'metric-down' if chg_24h<0 else 'metric-neutral'}'>{chg_24h:+.2f}%</span>"
 
                     fig = go.Figure()
                     fig.add_trace(go.Scatter(
@@ -277,7 +280,7 @@ if summary_path.exists():
                     )
                     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
                     st.markdown(
-                        f"<p style='font-size:0.8em;color:#bfbfbf;text-align:center;margin-top:-0.8em;'>{subtext}</p>",
+                        f"<p style='font-size:0.8em;text-align:center;margin-top:-0.8em;'>{subtext}</p>",
                         unsafe_allow_html=True
                     )
                 except Exception as e:
