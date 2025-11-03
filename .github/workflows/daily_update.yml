@@ -84,3 +84,5 @@ jobs:
           print("Saved narrated anomalies to data/anomalies_narrated.json")
           PY
 
+      - name: Generate Daily AI Insight
+        run: python scripts/generate_insight.py
