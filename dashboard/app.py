@@ -2,6 +2,31 @@
 # ⚗️ The Alchemist Intelligence Dashboard
 # ============================================================
 
+# ============================================================
+# --- PHASE 4 : Cross-Domain Correlation Summary ---
+# ============================================================
+st.markdown("## 🧠 Multi-Domain Correlation Insights")
+
+if client and summary_path.exists():
+    try:
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system",
+                 "content": "You are The Alchemist AI. Summarize cross-domain relationships between market sectors."},
+                {"role": "user",
+                 "content": f"Based on this dataset, highlight 2-3 meaningful correlations or divergences:\n{df_sorted.to_dict(orient='records')}"}
+            ],
+            max_tokens=150,
+            temperature=0.4
+        )
+        summary_text = resp.choices[0].message.content.strip()
+        st.markdown(f"<div class='card'><b>💡 Correlation Summary:</b><br>{summary_text}</div>", unsafe_allow_html=True)
+    except Exception as e:
+        st.info(f"⚠️ AI correlation summary unavailable: {e}")
+else:
+    st.info("💤 No API key — skipping correlation summary.")
+
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 import pandas as pd
@@ -300,135 +325,3 @@ if summary_path.exists():
                     )
                 except Exception as e:
                     st.warning(f"⚠️ Sparkline unavailable: {e}")
-# ============================================================
-# --- CROSS-DOMAIN BLENDING (AI or fallback) ---
-# ============================================================
-st.markdown("## 🔗 Cross-Domain Insight")
-
-def _heuristic_cross_domain(df_rows: pd.DataFrame) -> str:
-    # Simple heuristic if no AI key or request fails
-    try:
-        crypto = df_rows[df_rows["name"] == "crypto"]["score"].values[0]
-        social = df_rows[df_rows["name"] == "social"]["score"].values[0]
-        stocks = df_rows[df_rows["name"] == "stocks"]["score"].values[0]
-        signals = []
-        if crypto > 0.6 and social > 0.6:
-            signals.append("Crypto uptrend aligns with stronger social signal.")
-        if stocks > 0.6 and crypto > 0.6:
-            signals.append("Equities and crypto showing synchronous strength.")
-        if not signals:
-            signals.append("Signals mixed; watch for confirmation from social momentum.")
-        return " ".join(signals)
-    except Exception:
-        return "Insufficient signals; awaiting more data for a confident cross-domain read."
-
-insight_text = None
-if summary_path.exists():
-    try:
-        if client:
-            # Build compact context for the model
-            compact = "\n".join(
-                f"{row['name']}: score={row['score']:.3f}, summary={row['summary'][:140]}"
-                for _, row in df_sorted.iterrows()
-            )
-            resp = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You are The Alchemist AI. Explain cross-domain correlations succinctly with 1–2 sentences."},
-                    {"role": "user", "content": f"Given domain signals:\n{compact}\nFind any correlations (e.g., crypto ↔ social sentiment, equities ↔ crypto)."}
-                ],
-                max_tokens=120,
-            )
-            insight_text = resp.choices[0].message.content.strip()
-        else:
-            insight_text = _heuristic_cross_domain(df_sorted)
-    except Exception:
-        insight_text = _heuristic_cross_domain(df_sorted)
-
-st.markdown(
-    f"<div class='card' style='text-align:left'><b>Inference:</b><br>{insight_text}</div>",
-    unsafe_allow_html=True
-)
-
-# ============================================================
-# --- PHASE 3: Anomaly Detector Hook (placeholder UI) ---
-# ============================================================
-st.markdown("## 🧭 Anomaly Watch (Phase 3 Preview)")
-st.markdown(
-    "<div class='card' style='text-align:left'>"
-    "<b>Status:</b> Ready to ingest anomaly events from detectors "
-    "(volume spikes, unusual RSI, cross-domain divergences)."
-    "<br>When events arrive, they’ll render here with severity and links to charts."
-    "</div>",
-    unsafe_allow_html=True
-)
-
-# ============================================================
-# --- PHASE 3 : Anomaly Watch (Live Feed) ---
-# ============================================================
-st.markdown("## 🧭 Anomaly Watch")
-
-anom_file = Path("data/history.json")
-if anom_file.exists():
-    try:
-        from detectors.anomaly_detector import detect_anomalies
-        anomalies = detect_anomalies(window=20, threshold=2.0)
-        if anomalies:
-            for a in anomalies:
-                color = "#00e676" if a["direction"] == "surge" else "#ff4d4d"
-                st.markdown(
-                    f"<div class='card' style='border-left:4px solid {color};text-align:left'>"
-                    f"<b>{a['domain'].capitalize()}</b> — {a['direction'].upper()} (z={a['zscore']})<br>"
-                    f"Score: {a['score']:.2f} | Detected at {a['timestamp']}"
-                    f"</div>",
-                    unsafe_allow_html=True
-                )
-        else:
-            st.info("✅ No active anomalies detected.")
-    except Exception as e:
-        st.warning(f"⚠️ Anomaly module error: {e}")
-else:
-    st.info("📭 No historical data yet — run once to build history.")
-
-# ============================================================
-# --- PHASE 3 : Anomaly Watch (Live Feed + AI Narration) ---
-# ============================================================
-st.markdown("## 🧭 Anomaly Watch")
-
-anom_file = Path("data/history.json")
-if anom_file.exists():
-    try:
-        from detectors.anomaly_detector import detect_anomalies
-        anomalies = detect_anomalies(window=20, threshold=2.0)
-
-        if anomalies:
-            # Try to narrate with GPT
-            narrated = []
-            try:
-                from detectors.ai_narrator import narrate_anomalies
-                narrated = narrate_anomalies(anomalies, history_path="data/history.json")
-            except Exception as e:
-                narrated = []
-                st.warning(f"⚠️ Narrator module error: {e}")
-
-            # Display
-            for a in (narrated or anomalies):
-                direction = a.get("direction", "surge")
-                color = "#00e676" if direction == "surge" else "#ff4d4d"
-                narration = a.get("narration", "—")
-                st.markdown(
-                    f"<div class='card' style='border-left:4px solid {color};text-align:left'>"
-                    f"<b>{a['domain'].capitalize()}</b> — {direction.upper()} "
-                    f"(z={a['zscore']})<br>"
-                    f"Score: {a['score']:.2f} | Detected at {a['timestamp']}<br>"
-                    f"<span style='color:#bfbfbf'>🔎 {narration}</span>"
-                    f"</div>",
-                    unsafe_allow_html=True
-                )
-        else:
-            st.info("✅ No active anomalies detected.")
-    except Exception as e:
-        st.warning(f"⚠️ Anomaly module error: {e}")
-else:
-    st.info("📭 No historical data yet — run once to build history.")
-
