@@ -30,6 +30,14 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python main.py
 
+      - name: Detect surges & alert
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python detectors/surge_alerts.py || echo "No alerts triggered"
+
       - name: Commit outputs
         run: |
           git config user.name "The Alchemist Bot"
