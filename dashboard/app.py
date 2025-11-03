@@ -237,14 +237,15 @@ if summary_path.exists():
 
                 st.markdown(f"<p style='font-size:0.9em;color:#bfbfbf;'>{metrics_text}</p>", unsafe_allow_html=True)
 
-                        with col2:
+            # --- Right side: Sparkline + metrics ---
+            with col2:
                 try:
                     if "crypto" in domain.lower():
                         df_trend = get_btc_data() or mock_series(1)
                         latest = df_trend["price"].iloc[-1]
                         hour_ago = df_trend["price"].iloc[-min(len(df_trend), 12)]  # approx 1h at 5m intervals
                         chg_1h = ((latest - hour_ago) / hour_ago) * 100
-                        chg_24h = np.random.uniform(-2, 2)  # simulate daily change
+                        chg_24h = np.random.uniform(-2, 2)
                         vol_30m = np.random.uniform(0.5, 2.5)
                         subtext = f"Δ1h {chg_1h:+.2f}% | Δ24h {chg_24h:+.2f}% | Vol30m {vol_30m:.1f}B"
 
@@ -263,7 +264,6 @@ if summary_path.exists():
                         chg_24h = np.random.uniform(-1, 1)
                         subtext = f"Δ1h {chg_1h:+.2f}% | Δ24h {chg_24h:+.2f}%"
 
-                    # --- Sparkline Chart ---
                     fig = go.Figure()
                     fig.add_trace(go.Scatter(
                         x=df_trend["dt"], y=df_trend["price"],
