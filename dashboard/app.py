@@ -363,3 +363,30 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# ============================================================
+# --- PHASE 3 : Anomaly Watch (Live Feed) ---
+# ============================================================
+st.markdown("## 🧭 Anomaly Watch")
+
+anom_file = Path("data/history.json")
+if anom_file.exists():
+    try:
+        from detectors.anomaly_detector import detect_anomalies
+        anomalies = detect_anomalies(window=20, threshold=2.0)
+        if anomalies:
+            for a in anomalies:
+                color = "#00e676" if a["direction"] == "surge" else "#ff4d4d"
+                st.markdown(
+                    f"<div class='card' style='border-left:4px solid {color};text-align:left'>"
+                    f"<b>{a['domain'].capitalize()}</b> — {a['direction'].upper()} (z={a['zscore']})<br>"
+                    f"Score: {a['score']:.2f} | Detected at {a['timestamp']}"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+        else:
+            st.info("✅ No active anomalies detected.")
+    except Exception as e:
+        st.warning(f"⚠️ Anomaly module error: {e}")
+else:
+    st.info("📭 No historical data yet — run once to build history.")
+
