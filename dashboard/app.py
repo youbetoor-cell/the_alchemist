@@ -1,40 +1,34 @@
-import streamlit as st
-import pandas as pd
-import plotly.graph_objects as go
-import requests, json, os, httpx, numpy as np, yfinance as yf
-from pathlib import Path
-from datetime import datetime, timedelta
-from streamlit_autorefresh import st_autorefresh
-from openai import OpenAI
-
-# --- Config ---
-st.set_page_config(page_title="⚗️ The Alchemist", page_icon="🧙‍♂️", layout="wide")
-st.title("⚗️ The Alchemist Intelligence Dashboard")
-st.caption("💡 AI + Inline Micro Trends + Live Metrics ✨")
-st_autorefresh(interval=10 * 60 * 1000, key="refresh")
-
-# --- Load Summary ---
-summary_path = Path("data/summary.json")
-if summary_path.exists():
-    with open(summary_path, "r") as f:
-        summary_data = json.load(f)
-    df = pd.DataFrame(summary_data["details"])
-    df_sorted = df.sort_values("score", ascending=False).reset_index(drop=True)
-else:
-    st.warning("⚠️ No summary data found.")
-    st.stop()
-
-# --- Initialize OpenAI ---
-api_key = os.getenv("OPENAI_API_KEY", "").strip()
-client = None
-if api_key:
-    try:
-        client = OpenAI(api_key=api_key, http_client=httpx.Client(verify=True))
-    except Exception as e:
-        st.warning(f"⚠️ AI unavailable: {e}")
-
 # --- Intelligence Feed ---
 st.markdown("## 💡 Unified Intelligence Feed")
+
+@st.cache_data(ttl=300)
+def get_btc_data():
+    try:
+        url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart"
+        params = {"vs_currency": "usd", "days": "1"}
+        data = requests.get(url, params=params, timeout=10).json()
+        prices = pd.DataFrame(data["prices"], columns=["ts", "price"])
+        prices["dt"] = pd.to_datetime(prices["ts"], unit="ms")
+        return prices
+    except Exception:
+        return None
+
+@st.cache_data(ttl=300)
+def get_aapl_data():
+    try:
+        df_aapl = yf.download("AAPL", period="1d", interval="15m", progress=False)
+        if not df_aapl.empty:
+            df_aapl = df_aapl.rename_axis("dt").reset_index()[["dt", "Close"]].rename(columns={"Close": "price"})
+            return df_aapl
+        return None
+    except Exception:
+        return None
+
+def mock_series(label="mock", seed=0):
+    np.random.seed(seed)
+    vals = np.cumsum(np.random.normal(0, 0.1, 60)) + 100
+    times = pd.date_range(end=datetime.utcnow(), periods=60, freq="min")
+    return pd.DataFrame({"dt": times, "price": vals})
 
 for _, row in df_sorted.iterrows():
     domain = row["name"].capitalize()
@@ -43,26 +37,42 @@ for _, row in df_sorted.iterrows():
     with st.expander(f"🔹 {domain} Intelligence", expanded=False):
         # --- AI Sentiment ---
         ai_summary = "💤 (Skipped — no API key)"
+        sentiment_color = "#bfbfbf"
+        sentiment_tag = "⚪ neutral"
+
         if client:
             try:
                 resp = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
-                        {"role": "system", "content": "You are The Alchemist AI — a concise market analyst."},
-                        {"role": "user", "content": f"Summarize sentiment and movement for {domain} from: {summary}"}
+                        {"role": "system", "content": "You are The Alchemist AI — concise sentiment analyst."},
+                        {"role": "user", "content": f"Classify and summarize market tone for {domain}: {summary}"}
                     ],
                     max_tokens=60
                 )
-                ai_summary = resp.choices[0].message.content.strip()
+                ai_summary = resp.choices[0].message.content.strip().lower()
+
+                # --- Detect sentiment ---
+                if any(x in ai_summary for x in ["bullish", "positive", "rising", "optimistic"]):
+                    sentiment_color = "#00e676"
+                    sentiment_tag = "🟢 bullish"
+                elif any(x in ai_summary for x in ["bearish", "negative", "falling", "pessimistic"]):
+                    sentiment_color = "#ff4d4d"
+                    sentiment_tag = "🔴 bearish"
+                else:
+                    sentiment_color = "#bfbfbf"
+                    sentiment_tag = "⚪ neutral"
             except Exception as e:
                 ai_summary = f"⚠️ AI unavailable: {e}"
 
-        # --- Columns for summary and visuals ---
+        # --- Columns for summary + sparkline ---
         col1, col2 = st.columns([3, 2])
 
-        # Left side: AI summary + context
         with col1:
-            st.markdown(f"<p style='color:#00e6b8;'>🔮 {ai_summary}</p>", unsafe_allow_html=True)
+            st.markdown(
+                f"<p style='color:{sentiment_color};'>🔮 {sentiment_tag}: {ai_summary}</p>",
+                unsafe_allow_html=True
+            )
 
             # --- Contextual Metrics ---
             metrics_text = ""
@@ -76,11 +86,14 @@ for _, row in df_sorted.iterrows():
                     metrics_text = f"💰 BTC ${price:,.0f} ({chg:+.2f}%) | 24h Vol: ${vol:.1f}B"
 
                 elif "stocks" in domain.lower():
-                    df_aapl = yf.download("AAPL", period="1d", interval="15m", progress=False)
-                    last = df_aapl["Close"].iloc[-1]
-                    prev = df_aapl["Close"].iloc[-2]
-                    chg = ((last - prev) / prev) * 100
-                    metrics_text = f"💵 AAPL ${last:.2f} ({chg:+.2f}%)"
+                    df_aapl = get_aapl_data()
+                    if df_aapl is not None and len(df_aapl) > 2:
+                        last = df_aapl["price"].iloc[-1]
+                        prev = df_aapl["price"].iloc[-2]
+                        chg = ((last - prev) / prev) * 100
+                        metrics_text = f"💵 AAPL ${last:.2f} ({chg:+.2f}%)"
+                    else:
+                        metrics_text = "💵 AAPL data unavailable"
 
                 elif "music" in domain.lower():
                     metrics_text = f"🎧 Top Track Streams: +{np.random.randint(10,30)}% (24h est.)"
@@ -103,42 +116,28 @@ for _, row in df_sorted.iterrows():
 
             st.markdown(f"<p style='font-size:0.9em;color:#bfbfbf;'>{metrics_text}</p>", unsafe_allow_html=True)
 
-        # Right side: inline adaptive sparkline
         with col2:
-            fig = go.Figure()
             try:
+                # ---- Dynamic Sparkline ----
                 if "crypto" in domain.lower():
-                    url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart"
-                    params = {"vs_currency": "usd", "days": "1"}
-                    data = requests.get(url, params=params, timeout=10).json()
-                    prices = pd.DataFrame(data["prices"], columns=["ts", "price"])
-                    prices["dt"] = pd.to_datetime(prices["ts"], unit="ms")
-                    fig.add_trace(go.Scatter(x=prices["dt"], y=prices["price"],
-                                             mode="lines", line=dict(color="#00e6b8", width=2),
-                                             fill="tozeroy", fillcolor="rgba(0,230,184,0.2)"))
+                    df = get_btc_data() or mock_series(domain, 1)
                 elif "stocks" in domain.lower():
-                    df_aapl = yf.download("AAPL", period="1d", interval="15m", progress=False)
-                    fig.add_trace(go.Scatter(x=df_aapl.index, y=df_aapl["Close"],
-                                             mode="lines", line=dict(color="#d4af37", width=2),
-                                             fill="tozeroy", fillcolor="rgba(212,175,55,0.2)"))
-                elif "music" in domain.lower():
-                    trend = np.abs(np.sin(np.linspace(0, 2*np.pi, 24)) + np.random.normal(0, 0.1, 24))
-                    times = pd.date_range(end=datetime.utcnow(), periods=24, freq="H")
-                    fig.add_trace(go.Scatter(x=times, y=trend,
-                                             mode="lines", line=dict(color="#1db954", width=2),
-                                             fill="tozeroy", fillcolor="rgba(29,185,84,0.2)"))
+                    df = get_aapl_data() or mock_series(domain, 2)
                 else:
-                    trend = np.random.normal(1, 0.02, 24)
-                    times = pd.date_range(end=datetime.utcnow(), periods=24, freq="H")
-                    fig.add_trace(go.Scatter(x=times, y=trend,
-                                             mode="lines", line=dict(color="#888", width=2),
-                                             fill="tozeroy", fillcolor="rgba(136,136,136,0.2)"))
+                    df = mock_series(domain, 3)
 
+                fig = go.Figure()
+                color = sentiment_color
+                fig.add_trace(go.Scatter(
+                    x=df["dt"], y=df["price"], mode="lines",
+                    line=dict(color=color, width=2),
+                    fill="tozeroy", fillcolor=f"rgba(255,255,255,0.07)"
+                ))
                 fig.update_layout(
                     height=70, margin=dict(l=0, r=0, t=10, b=0),
                     xaxis=dict(visible=False), yaxis=dict(visible=False),
                     plot_bgcolor="#0a0a0f", paper_bgcolor="#0a0a0f"
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
             except Exception as e:
                 st.warning(f"⚠️ Sparkline unavailable: {e}")
