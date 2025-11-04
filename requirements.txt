@@ -9,3 +9,7 @@ openai
 yfinance
 plotly
 requests
+matplotlib
+email-validator
+schedule
+python-dotenv

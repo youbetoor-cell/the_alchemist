@@ -1,0 +1,62 @@
+[
+  {
+    "timestamp": "2025-11-04T07:14:54.640440",
+    "btc_price": 99715.13,
+    "aapl_price": 269.59,
+    "insight": "Mock insight 0"
+  },
+  {
+    "timestamp": "2025-11-04T08:14:54.640440",
+    "btc_price": 99465.29,
+    "aapl_price": 267.71,
+    "insight": "Mock insight 1"
+  },
+  {
+    "timestamp": "2025-11-04T09:14:54.640440",
+    "btc_price": 99165.25,
+    "aapl_price": 269.15,
+    "insight": "Mock insight 2"
+  },
+  {
+    "timestamp": "2025-11-04T10:14:54.640440",
+    "btc_price": 99051.59,
+    "aapl_price": 268.81,
+    "insight": "Mock insight 3"
+  },
+  {
+    "timestamp": "2025-11-04T11:14:54.640440",
+    "btc_price": 99476.69,
+    "aapl_price": 267.94,
+    "insight": "Mock insight 4"
+  },
+  {
+    "timestamp": "2025-11-04T12:14:54.640440",
+    "btc_price": 99381.72,
+    "aapl_price": 267.14,
+    "insight": "Mock insight 5"
+  },
+  {
+    "timestamp": "2025-11-04T13:14:54.640440",
+    "btc_price": 99149.66,
+    "aapl_price": 268.87,
+    "insight": "Mock insight 6"
+  },
+  {
+    "timestamp": "2025-11-04T14:14:54.640440",
+    "btc_price": 99466.36,
+    "aapl_price": 269.9,
+    "insight": "Mock insight 7"
+  },
+  {
+    "timestamp": "2025-11-04T15:14:54.640440",
+    "btc_price": 99616.23,
+    "aapl_price": 269.54,
+    "insight": "Mock insight 8"
+  },
+  {
+    "timestamp": "2025-11-04T16:14:54.640440",
+    "btc_price": 99233.5,
+    "aapl_price": 268.76,
+    "insight": "Mock insight 9"
+  }
+]
