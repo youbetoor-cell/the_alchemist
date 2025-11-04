@@ -82,5 +82,11 @@
     "btc_price": 100245.0,
     "aapl_price": 270.2,
     "insight": "(Insight generation failed: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}})"
+  },
+  {
+    "timestamp": "2025-11-04T20:36:37.728156",
+    "btc_price": 100129.0,
+    "aapl_price": 270.21,
+    "insight": "(Insight generation failed: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}})"
   }
 ]
