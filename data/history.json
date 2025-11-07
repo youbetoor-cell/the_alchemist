@@ -125,5 +125,71 @@
     "aapl_price": 99.07207190157706,
     "btc_anomalies": 14,
     "aapl_anomalies": 1
+  },
+  {
+    "timestamp": "2025-11-07T03:36:42.377997Z",
+    "domain": "stocks",
+    "score": 0.57
+  },
+  {
+    "timestamp": "2025-11-07T03:36:42.377997Z",
+    "domain": "sports",
+    "score": 0.5
+  },
+  {
+    "timestamp": "2025-11-07T03:36:42.377997Z",
+    "domain": "forex",
+    "score": 0.5
+  },
+  {
+    "timestamp": "2025-11-07T03:36:42.377997Z",
+    "domain": "social",
+    "score": 0.5
+  },
+  {
+    "timestamp": "2025-11-07T03:36:42.377997Z",
+    "domain": "music",
+    "score": 0.5
+  },
+  {
+    "timestamp": "2025-11-07T03:36:42.377997Z",
+    "domain": "crypto",
+    "score": 0.349
+  },
+  {
+    "timestamp": "2025-11-07T03:36:42.478322",
+    "domain": "sports",
+    "score": 0.5,
+    "signal": "hold"
+  },
+  {
+    "timestamp": "2025-11-07T03:36:42.478330",
+    "domain": "stocks",
+    "score": 0.57,
+    "signal": "buy"
+  },
+  {
+    "timestamp": "2025-11-07T03:36:42.478332",
+    "domain": "forex",
+    "score": 0.5,
+    "signal": "hold"
+  },
+  {
+    "timestamp": "2025-11-07T03:36:42.478334",
+    "domain": "crypto",
+    "score": 0.349,
+    "signal": "sell"
+  },
+  {
+    "timestamp": "2025-11-07T03:36:42.478335",
+    "domain": "social",
+    "score": 0.5,
+    "signal": "hold"
+  },
+  {
+    "timestamp": "2025-11-07T03:36:42.478336",
+    "domain": "music",
+    "score": 0.5,
+    "signal": "hold"
   }
 ]
