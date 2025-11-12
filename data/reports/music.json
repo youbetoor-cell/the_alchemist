@@ -1,8 +1,8 @@
 {
-  "summary": "Mock analysis for music: value=0.69, signal=buy, conf=0.69",
+  "summary": "Mock analysis for music: value=0.78, signal=buy, conf=0.78",
   "signal": "buy",
-  "confidence": 0.69,
+  "confidence": 0.78,
   "time_horizon_days": 7,
-  "generated_at": "2025-11-12T20:41:24.304293Z",
+  "generated_at": "2025-11-12T21:34:38.766834Z",
   "agent": "music"
 }
