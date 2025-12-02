@@ -1,9 +1,9 @@
 {
-  "generated_at": "2025-12-02T15:23:07.909859Z",
+  "generated_at": "2025-12-02T16:29:34.422572Z",
   "ticker": "AAPL",
-  "price_usd": 284.9494934082031,
-  "change_1d": 0.6888669286936837,
+  "price_usd": 285.5400085449219,
+  "change_1d": 0.8975295211738075,
   "signal": "buy",
-  "summary": "AAPL closed at $284.95 (0.69% today) \u2014 signal=buy",
-  "score": 0.569
+  "summary": "AAPL closed at $285.54 (0.90% today) \u2014 signal=buy",
+  "score": 0.59
 }
