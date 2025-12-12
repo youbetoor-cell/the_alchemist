@@ -1,10 +1,10 @@
 {
-  "generated_at": "2025-12-12T21:18:46.995858Z",
+  "generated_at": "2025-12-12T22:20:10.192897Z",
   "top_coin": "Bitcoin",
   "symbol": "BTC",
-  "price_usd": 90266,
-  "change_24h": -2.62719,
+  "price_usd": 90344,
+  "change_24h": -2.8068,
   "signal": "sell",
-  "summary": "Top coin: Bitcoin (BTC), price $90266, 24h change -2.63%, signal=sell",
-  "score": 0.237
+  "summary": "Top coin: Bitcoin (BTC), price $90344, 24h change -2.81%, signal=sell",
+  "score": 0.219
 }
