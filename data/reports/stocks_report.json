@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-01-09T18:32:00.456634Z",
+  "generated_at": "2026-01-09T19:20:56.292103Z",
   "ticker": "AAPL",
-  "price_usd": 259.1199951171875,
-  "change_1d": 0.017362890296924272,
+  "price_usd": 259.7200012207031,
+  "change_1d": 0.24895840327374116,
   "signal": "hold",
-  "summary": "AAPL closed at $259.12 (0.02% today) \u2014 signal=hold",
-  "score": 0.502
+  "summary": "AAPL closed at $259.72 (0.25% today) \u2014 signal=hold",
+  "score": 0.525
 }
