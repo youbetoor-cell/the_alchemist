@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-02-13T20:38:07.640272Z",
+  "generated_at": "2026-02-13T21:34:44.739696Z",
   "top_coin": "Bitcoin",
   "symbol": "BTC",
-  "price_usd": 68839,
-  "change_24h": 4.98412,
+  "price_usd": 68853,
+  "change_24h": 5.03744,
   "signal": "buy",
-  "summary": "Top coin: Bitcoin (BTC), price $68839, 24h change 4.98%, signal=buy",
-  "score": 0.998
+  "summary": "Top coin: Bitcoin (BTC), price $68853, 24h change 5.04%, signal=buy",
+  "score": 1.004
 }
