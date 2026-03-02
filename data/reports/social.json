@@ -1,8 +1,8 @@
 {
-  "summary": "Mock analysis for social: value=0.29, signal=sell, conf=0.71",
+  "summary": "Mock analysis for social: value=0.26, signal=sell, conf=0.74",
   "signal": "sell",
-  "confidence": 0.71,
+  "confidence": 0.74,
   "time_horizon_days": 7,
-  "generated_at": "2026-03-02T06:57:40.027990Z",
+  "generated_at": "2026-03-02T07:51:49.502446Z",
   "agent": "social"
 }
