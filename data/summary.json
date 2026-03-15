@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-03-15T19:27:44.912699",
+  "generated_at": "2026-03-15T20:29:34.076723",
   "details": [
     {
       "name": "sports",
       "score": 0.5,
-      "summary": "Mock analysis for sports: value=0.32, signal=sell, conf=0.68",
-      "signal": "sell"
+      "summary": "Mock analysis for sports: value=0.58, signal=hold, conf=0.5",
+      "signal": "hold"
     },
     {
       "name": "stocks",
@@ -16,25 +16,25 @@
     {
       "name": "forex",
       "score": 0.5,
-      "summary": "Mock analysis for forex: value=0.24, signal=sell, conf=0.76",
-      "signal": "sell"
+      "summary": "Mock analysis for forex: value=0.47, signal=hold, conf=0.5",
+      "signal": "hold"
     },
     {
       "name": "crypto",
-      "score": 0.618,
-      "summary": "Top coin: Bitcoin (BTC), price $71516, 24h change 1.18%, signal=buy",
+      "score": 0.599,
+      "summary": "Top coin: Bitcoin (BTC), price $71459, 24h change 0.99%, signal=buy",
       "signal": "buy"
     },
     {
       "name": "social",
       "score": 0.5,
-      "summary": "Mock analysis for social: value=0.96, signal=buy, conf=0.96",
-      "signal": "buy"
+      "summary": "Mock analysis for social: value=0.41, signal=hold, conf=0.5",
+      "signal": "hold"
     },
     {
       "name": "music",
       "score": 0.5,
-      "summary": "Mock analysis for music: value=0.95, signal=buy, conf=0.95",
+      "summary": "Mock analysis for music: value=0.72, signal=buy, conf=0.72",
       "signal": "buy"
     }
   ]
