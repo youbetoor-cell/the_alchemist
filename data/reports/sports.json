@@ -1,8 +1,8 @@
 {
-  "summary": "Mock analysis for sports: value=0.64, signal=hold, conf=0.5",
-  "signal": "hold",
-  "confidence": 0.5,
+  "summary": "Mock analysis for sports: value=0.85, signal=buy, conf=0.85",
+  "signal": "buy",
+  "confidence": 0.85,
   "time_horizon_days": 7,
-  "generated_at": "2026-06-28T22:01:44.503800Z",
+  "generated_at": "2026-06-29T00:08:33.614342Z",
   "agent": "sports"
 }
