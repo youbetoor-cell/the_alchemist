@@ -1,41 +1,41 @@
 {
-  "generated_at": "2026-07-08T07:28:08.040794",
+  "generated_at": "2026-07-08T10:16:21.551025",
   "details": [
     {
       "name": "sports",
       "score": 0.5,
-      "summary": "Mock analysis for sports: value=0.34, signal=hold, conf=0.5",
-      "signal": "hold"
+      "summary": "Mock analysis for sports: value=0.94, signal=buy, conf=0.94",
+      "signal": "buy"
     },
     {
       "name": "stocks",
-      "score": 0.353,
-      "summary": "AAPL closed at $310.66 (-1.47% today) \u2014 signal=sell",
-      "signal": "sell"
+      "score": 0.5,
+      "summary": "\u274c Failed to fetch stock data: Failed to perform, curl: (60) SSL: no alternative certificate subject name matches target hostname 'fc.yahoo.com'. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.",
+      "signal": "hold"
     },
     {
       "name": "forex",
       "score": 0.5,
-      "summary": "Mock analysis for forex: value=0.79, signal=buy, conf=0.79",
+      "summary": "Mock analysis for forex: value=0.68, signal=buy, conf=0.68",
       "signal": "buy"
     },
     {
       "name": "crypto",
-      "score": 0.429,
-      "summary": "Top coin: Bitcoin (BTC), price $62757, 24h change -0.71%, signal=sell",
+      "score": 0.272,
+      "summary": "Top coin: Bitcoin (BTC), price $61936, 24h change -2.28%, signal=sell",
       "signal": "sell"
     },
     {
       "name": "social",
       "score": 0.5,
-      "summary": "Mock analysis for social: value=0.39, signal=hold, conf=0.5",
+      "summary": "Mock analysis for social: value=0.47, signal=hold, conf=0.5",
       "signal": "hold"
     },
     {
       "name": "music",
       "score": 0.5,
-      "summary": "Mock analysis for music: value=0.96, signal=buy, conf=0.96",
-      "signal": "buy"
+      "summary": "Mock analysis for music: value=0.00, signal=sell, conf=1.0",
+      "signal": "sell"
     }
   ]
 }
