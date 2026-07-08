@@ -1,5 +1,9 @@
 {
-  "error": "Failed to perform, curl: (60) SSL: no alternative certificate subject name matches target hostname 'fc.yahoo.com'. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.",
-  "summary": "\u274c Failed to fetch stock data: Failed to perform, curl: (60) SSL: no alternative certificate subject name matches target hostname 'fc.yahoo.com'. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.",
-  "score": 0.5
+  "generated_at": "2026-07-08T12:20:14.598295Z",
+  "ticker": "AAPL",
+  "price_usd": 310.6600036621094,
+  "change_1d": -1.468490836160711,
+  "signal": "sell",
+  "summary": "AAPL closed at $310.66 (-1.47% today) \u2014 signal=sell",
+  "score": 0.353
 }
