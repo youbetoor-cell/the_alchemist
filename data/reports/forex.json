@@ -1,8 +1,8 @@
 {
-  "summary": "Mock analysis for forex: value=0.49, signal=hold, conf=0.5",
-  "signal": "hold",
-  "confidence": 0.5,
+  "summary": "Mock analysis for forex: value=0.84, signal=buy, conf=0.84",
+  "signal": "buy",
+  "confidence": 0.84,
   "time_horizon_days": 7,
-  "generated_at": "2026-07-13T18:42:57.483786Z",
+  "generated_at": "2026-07-13T20:13:48.898415Z",
   "agent": "forex"
 }
