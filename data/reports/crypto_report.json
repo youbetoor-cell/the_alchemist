@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-07-30T08:24:07.907293Z",
+  "generated_at": "2026-07-30T11:06:53.209346Z",
   "top_coin": "Bitcoin",
   "symbol": "BTC",
-  "price_usd": 64005,
-  "change_24h": -0.7,
-  "signal": "sell",
-  "summary": "Top coin: Bitcoin (BTC), price $64005, 24h change -0.70%, signal=sell",
-  "score": 0.43
+  "price_usd": 64498,
+  "change_24h": -0.2,
+  "signal": "hold",
+  "summary": "Top coin: Bitcoin (BTC), price $64498, 24h change -0.20%, signal=hold",
+  "score": 0.48
 }
