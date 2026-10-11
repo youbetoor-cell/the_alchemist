@@ -1,71 +1,5 @@
 [
   {
-    "timestamp": "2026-09-19T04:22:47.111740Z",
-    "domain": "music",
-    "score": 0.5
-  },
-  {
-    "timestamp": "2026-09-19T04:22:47.111740Z",
-    "domain": "stocks",
-    "score": 0.447
-  },
-  {
-    "timestamp": "2026-09-19T04:22:47.299928",
-    "domain": "sports",
-    "score": 0.5,
-    "signal": "sell"
-  },
-  {
-    "timestamp": "2026-09-19T04:22:47.299933",
-    "domain": "stocks",
-    "score": 0.447,
-    "signal": "sell"
-  },
-  {
-    "timestamp": "2026-09-19T04:22:47.299935",
-    "domain": "forex",
-    "score": 0.5,
-    "signal": "hold"
-  },
-  {
-    "timestamp": "2026-09-19T04:22:47.299936",
-    "domain": "crypto",
-    "score": 0.997,
-    "signal": "buy"
-  },
-  {
-    "timestamp": "2026-09-19T04:22:47.299936",
-    "domain": "social",
-    "score": 0.5,
-    "signal": "buy"
-  },
-  {
-    "timestamp": "2026-09-19T04:22:47.299937",
-    "domain": "music",
-    "score": 0.5,
-    "signal": "buy"
-  },
-  {
-    "timestamp": "2026-09-19T15:47:31.124276Z",
-    "domain": "crypto",
-    "score": 0.653
-  },
-  {
-    "timestamp": "2026-09-19T15:47:31.124276Z",
-    "domain": "sports",
-    "score": 0.5
-  },
-  {
-    "timestamp": "2026-09-19T15:47:31.124276Z",
-    "domain": "forex",
-    "score": 0.5
-  },
-  {
-    "timestamp": "2026-09-19T15:47:31.124276Z",
-    "domain": "social",
-    "score": 0.5
-  },
-  {
     "timestamp": "2026-09-19T15:47:31.124276Z",
     "domain": "music",
     "score": 0.5
@@ -2747,6 +2681,72 @@
   },
   {
     "timestamp": "2026-10-11T05:30:27.028265",
+    "domain": "music",
+    "score": 0.5,
+    "signal": "sell"
+  },
+  {
+    "timestamp": "2026-10-11T17:38:49.875677Z",
+    "domain": "stocks",
+    "score": 0.649
+  },
+  {
+    "timestamp": "2026-10-11T17:38:49.875677Z",
+    "domain": "crypto",
+    "score": 0.62
+  },
+  {
+    "timestamp": "2026-10-11T17:38:49.875677Z",
+    "domain": "sports",
+    "score": 0.5
+  },
+  {
+    "timestamp": "2026-10-11T17:38:49.875677Z",
+    "domain": "forex",
+    "score": 0.5
+  },
+  {
+    "timestamp": "2026-10-11T17:38:49.875677Z",
+    "domain": "social",
+    "score": 0.5
+  },
+  {
+    "timestamp": "2026-10-11T17:38:49.875677Z",
+    "domain": "music",
+    "score": 0.5
+  },
+  {
+    "timestamp": "2026-10-11T17:38:49.930605",
+    "domain": "sports",
+    "score": 0.5,
+    "signal": "hold"
+  },
+  {
+    "timestamp": "2026-10-11T17:38:49.930612",
+    "domain": "stocks",
+    "score": 0.649,
+    "signal": "buy"
+  },
+  {
+    "timestamp": "2026-10-11T17:38:49.930614",
+    "domain": "forex",
+    "score": 0.5,
+    "signal": "hold"
+  },
+  {
+    "timestamp": "2026-10-11T17:38:49.930615",
+    "domain": "crypto",
+    "score": 0.62,
+    "signal": "buy"
+  },
+  {
+    "timestamp": "2026-10-11T17:38:49.930616",
+    "domain": "social",
+    "score": 0.5,
+    "signal": "buy"
+  },
+  {
+    "timestamp": "2026-10-11T17:38:49.930617",
     "domain": "music",
     "score": 0.5,
     "signal": "sell"
