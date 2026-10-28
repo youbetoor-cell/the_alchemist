@@ -1,40 +1,40 @@
 {
-  "generated_at": "2026-10-28T18:18:16.800865",
+  "generated_at": "2026-10-28T22:12:19.603144",
   "details": [
     {
       "name": "sports",
       "score": 0.5,
-      "summary": "Mock analysis for sports: value=0.46, signal=hold, conf=0.5",
-      "signal": "hold"
+      "summary": "Mock analysis for sports: value=0.26, signal=sell, conf=0.74",
+      "signal": "sell"
     },
     {
       "name": "stocks",
-      "score": 0.438,
-      "summary": "AAPL closed at $344.72 (-0.62% today) \u2014 signal=sell",
+      "score": 0.412,
+      "summary": "AAPL closed at $343.83 (-0.88% today) \u2014 signal=sell",
       "signal": "sell"
     },
     {
       "name": "forex",
       "score": 0.5,
-      "summary": "Mock analysis for forex: value=0.43, signal=hold, conf=0.5",
+      "summary": "Mock analysis for forex: value=0.54, signal=hold, conf=0.5",
       "signal": "hold"
     },
     {
       "name": "crypto",
-      "score": 0.521,
-      "summary": "Top coin: Bitcoin (BTC), price $80716, 24h change 0.21%, signal=hold",
+      "score": 0.548,
+      "summary": "Top coin: Bitcoin (BTC), price $81206, 24h change 0.48%, signal=hold",
       "signal": "hold"
     },
     {
       "name": "social",
       "score": 0.5,
-      "summary": "Mock analysis for social: value=0.70, signal=buy, conf=0.7",
-      "signal": "buy"
+      "summary": "Mock analysis for social: value=0.63, signal=hold, conf=0.5",
+      "signal": "hold"
     },
     {
       "name": "music",
       "score": 0.5,
-      "summary": "Mock analysis for music: value=0.68, signal=buy, conf=0.68",
+      "summary": "Mock analysis for music: value=0.75, signal=buy, conf=0.75",
       "signal": "buy"
     }
   ]
